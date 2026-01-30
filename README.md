@@ -1,7 +1,8 @@
 # RLPrompt
 
 
-<img width="1709" height="512" alt="Group 1 (2)" src="https://github.com/user-attachments/assets/b8ab9db7-b467-4edb-a631-263bbbe8000b" />
+
+<img width="1709" height="512" alt="Group 2" src="https://github.com/user-attachments/assets/059f0f0b-a0cf-4414-ae5b-451d27140a2a" />
 
 
 
