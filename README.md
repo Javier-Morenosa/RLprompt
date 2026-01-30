@@ -1,6 +1,7 @@
 # RLPrompt
 
-<img width="2665" height="512" alt="RLPrompt" src="https://github.com/user-attachments/assets/50d1e64d-6ef5-4800-9a98-76958a7e2c1f" />
+
+<img width="1709" height="512" alt="Group 1 (2)" src="https://github.com/user-attachments/assets/b8ab9db7-b467-4edb-a631-263bbbe8000b" />
 
 
 
