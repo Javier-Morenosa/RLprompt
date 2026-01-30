@@ -1,7 +1,8 @@
 # RLPrompt
 
+<img width="2665" height="512" alt="RLPrompt" src="https://github.com/user-attachments/assets/d4d59e37-117c-4350-b940-d5b0b8f5f691" />
 
-<img width="1644" height="512" alt="Group 1 (1)" src="https://github.com/user-attachments/assets/0be62f3e-016d-41fa-898c-1ef393fa5d3f" />
+
 
 Reinforcement learning framework for **prompt refinement** with LLMs (Large Language Models).
 ## Description
