@@ -4,7 +4,7 @@ Reinforcement learning framework for **prompt refinement** with LLMs (Large Lang
 
 ## Description
 
-`prompt-rl` provides the structure for:
+`RLPrompt` provides the structure for:
 
 - **Representing prompts** with history and metadata
 - **Integrating LLM backends** (OpenAI API with API key, local model via OpenAI-compatible server, or mock for development)
