@@ -2,7 +2,8 @@
 
 
 
-<img width="1709" height="512" alt="Group 2" src="https://github.com/user-attachments/assets/059f0f0b-a0cf-4414-ae5b-451d27140a2a" />
+<img width="1572" height="512" alt="Group 3" src="https://github.com/user-attachments/assets/6a328fd7-abb0-4788-9153-e19851a412db" />
+
 
 
 
