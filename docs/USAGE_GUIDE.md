@@ -103,6 +103,22 @@ step = env.step("Write a 2-sentence product description.", info={"score": 0.8})
 print(step.reward, step.observation.text)
 ```
 
+### Actor-Critic loop (Gradio)
+
+UI Gradio con Actor-Critic: pregunta, 10 respuestas, selección múltiple, bucle automático tras cada Submit selection.
+
+```python
+from prompt_rl.actor_critic_loop import LLMActor, LLMCritic, launch_integrated, ActorCriticConfig
+from prompt_rl.llm import LocalLLMBackend
+
+llm = LocalLLMBackend(model="gemma3:1b", base_url="http://localhost:11434/v1")
+actor = LLMActor(prompt_llm=llm, response_llm=llm)
+critic = LLMCritic(llm=llm)
+launch_integrated(actor=actor, critic=critic, num_variations=10, server_port=7863)
+```
+
+See `examples/gradio_feedback_example.py` (run with `--mock` for tests without Ollama).
+
 ### Full hybrid system (evolution + Actor-Critic + feedback)
 
 See [Section 6](#6-workflow-phases-and-loop) and `examples/hybrid_system_example.py`.
@@ -292,16 +308,18 @@ See [METRICS.md](METRICS.md).
 | **`examples/basic_refinement.py`** | Single prompt + RefinementLoop + MockLLM. |
 | **`examples/rl_env_example.py`** | PromptRefinementEnv + ScalarReward; simulates steps with a score in `info`. |
 | **`examples/hybrid_system_example.py`** | Full hybrid: init → loop.step with simulated feedback → refinement; uses MockLLM, RandomActor, MockCritic. |
-| **`examples/gradio_feedback_example.py`** | Gradio UI: standalone feedback form or collector that blocks until user submits. |
+| **`examples/gradio_feedback_example.py`** | UI Gradio con Actor-Critic: pregunta, 10 respuestas, selección múltiple, bucle automático; usa `launch_integrated`. |
+| **`examples/actor_critic_example.py`** | ActorCriticLoop programático con callback mock. |
 
 Run from the repo root:
 
 ```bash
-pip install -e .
+pip install -e ".[openai,gradio]"
 python examples/basic_refinement.py
 python examples/hybrid_system_example.py
-python examples/gradio_feedback_example.py          # standalone UI
-python examples/gradio_feedback_example.py collector  # collector demo
+python examples/gradio_feedback_example.py          # UI Gradio (Ollama)
+python examples/gradio_feedback_example.py --mock   # UI Gradio (MockLLM, sin servidor)
+python examples/actor_critic_example.py --mock      # Loop programático
 ```
 
 ---
@@ -312,14 +330,15 @@ python examples/gradio_feedback_example.py collector  # collector demo
 
 ```
 prompt_rl
-├── core          Prompt, PromptHistory, RefinementLoop
-├── rl            PromptRefinementEnv, ScalarReward, HybridReward, Policy
-├── llm           LLMBackend, LLMResponse, MockLLM, OpenAIBackend, LocalLLMBackend (optional)
-├── evolution     PromptGenome, Population, mutate_genome, crossover_genomes, guided_mutation
-├── actor_critic  Actor, Critic, RandomActor, MockCritic, generate_candidates, generate_candidates_parallel
-├── feedback      HumanFeedback, FeedbackAggregator, Gradio: create_feedback_interface, HumanFeedbackCollector
-├── training      TrainingConfig, TrainingLoop, HybridOptimizationFlow, GPROOptimizer, MetricsCollector
-└── utils         map_parallel, run_parallel, score_batch_parallel
+├── core              Prompt, PromptHistory, RefinementLoop
+├── rl                PromptRefinementEnv, ScalarReward, HybridReward, Policy
+├── llm               LLMBackend, LLMResponse, MockLLM, OpenAIBackend, LocalLLMBackend (optional)
+├── actor_critic_loop LLMActor, LLMCritic, HumanMultiSelectFeedback, launch_integrated, ActorCriticLoop
+├── evolution         PromptGenome, Population, mutate_genome, crossover_genomes, guided_mutation
+├── actor_critic      Actor, Critic, RandomActor, MockCritic, generate_candidates (hybrid system)
+├── feedback          HumanFeedback, FeedbackAggregator, Gradio UI (hybrid system)
+├── training          TrainingConfig, TrainingLoop, HybridOptimizationFlow, GPROOptimizer, MetricsCollector
+└── utils             map_parallel, run_parallel, score_batch_parallel
 ```
 
 ### Key imports
@@ -329,6 +348,7 @@ from prompt_rl import Prompt, RefinementLoop
 from prompt_rl.core.prompt import PromptHistory
 from prompt_rl.rl import PromptRefinementEnv, ScalarReward, HybridReward
 from prompt_rl.llm import MockLLM, OpenAIBackend, LocalLLMBackend
+from prompt_rl.actor_critic_loop import LLMActor, LLMCritic, launch_integrated, ActorCriticLoop, ActorCriticConfig
 from prompt_rl.evolution import PromptGenome, Population, mutate_genome, crossover_genomes
 from prompt_rl.actor_critic import Actor, Critic, RandomActor, MockCritic, generate_candidates_parallel
 from prompt_rl.training import (

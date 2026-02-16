@@ -2,7 +2,20 @@
 
 Combined system: **Evolutionary Algorithm** + **Actor-Critic** + **Human Feedback Loop** for optimizing system prompts with LLMs.
 
-## Flow diagram
+## Actor-Critic loop (standalone)
+
+A simpler standalone flow in `actor_critic_loop/` for prompt refinement with human feedback (no evolution):
+
+1. **User query** → Actor generates N system prompt variations (query-aware) and N responses.
+2. **Human** selects ALL correct responses (multi-select); optionally provides a feedback comment.
+3. **Critic** receives only (system_prompt, reward) per variation—never the query nor the responses—and optionally the human comment. Produces refinement instructions.
+4. **New iteration** runs automatically: Actor uses the refinement hint to generate new prompts and responses.
+
+The Critic infers patterns from reward signals alone. See `examples/gradio_feedback_example.py` and `launch_integrated()`.
+
+---
+
+## Hybrid system flow diagram
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -50,7 +63,7 @@ Combined system: **Evolutionary Algorithm** + **Actor-Critic** + **Human Feedbac
     └──────────────────────────┘
 ```
 
-## Components
+## Components (Hybrid System)
 
 ### 1. Evolutionary (`evolution/`)
 

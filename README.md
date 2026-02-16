@@ -45,13 +45,14 @@ pip install -e ".[dev]"
 ```
 prompt_rl/
 ├── src/prompt_rl/
-│   ├── core/           # Prompt, PromptHistory, RefinementLoop
-│   ├── rl/             # PromptRefinementEnv, rewards (ScalarReward, HybridReward), policies
-│   ├── llm/            # LLMBackend, MockLLM, OpenAIBackend, LocalLLMBackend
+│   ├── core/            # Prompt, PromptHistory, RefinementLoop
+│   ├── rl/              # PromptRefinementEnv, rewards (ScalarReward, HybridReward), policies
+│   ├── llm/             # LLMBackend, MockLLM, OpenAIBackend, LocalLLMBackend
 │   ├── evolution/       # Population, modular genome, mutation, crossover, guided injection
-│   ├── actor_critic/   # Actor (selection), Critic (score), generate_candidates
-│   ├── feedback/       # Human feedback: explicit, implicit, preferences; optional Gradio UI
-│   └── training/       # TrainingLoop, HybridOptimizationFlow, config (λi, α, β, elite)
+│   ├── actor_critic_loop/  # Actor-Critic con feedback humano (LLMActor, LLMCritic, launch_integrated)
+│   ├── actor_critic/    # Actor-Critic del sistema híbrido (RandomActor, MockCritic)
+│   ├── feedback/        # Human feedback: explicit, implicit, preferences; optional Gradio UI
+│   └── training/        # TrainingLoop, HybridOptimizationFlow, config (λi, α, β, elite)
 ├── tests/
 ├── examples/
 └── docs/
@@ -119,26 +120,31 @@ state = env.reset()
 # step_result = env.step(action, info={"score": 0.8})
 ```
 
-### Human feedback with Gradio (optional)
+### Actor-Critic loop with Gradio
 
 ```bash
-pip install prompt-rl[gradio]
+pip install prompt-rl[gradio,openai]
 ```
 
 ```python
-# Standalone: launch app; user enters query/response and submits ratings
-from prompt_rl.feedback import launch_standalone
-launch_standalone(server_port=7860)
+from prompt_rl.actor_critic_loop import LLMActor, LLMCritic, launch_integrated, ActorCriticConfig
+from prompt_rl.llm import LocalLLMBackend
 
-# Integrated: training loop blocks until user submits feedback
-from prompt_rl.feedback import HumanFeedbackCollector
-collector = HumanFeedbackCollector(server_port=7860)
-collector.start()
-result = collector.get_feedback(query="...", response="...")
-score = result.score  # use in training (e.g. human_feedback=score)
+llm = LocalLLMBackend(model="gemma3:1b", base_url="http://localhost:11434/v1")
+actor = LLMActor(prompt_llm=llm, response_llm=llm)
+critic = LLMCritic(llm=llm)
+config = ActorCriticConfig(num_variations=10)
+
+launch_integrated(
+    actor=actor,
+    critic=critic,
+    base_instruction="You are a helpful assistant.",
+    num_variations=config.num_variations,
+    server_port=7863,
+)
 ```
 
-See `examples/gradio_feedback_example.py` (run as-is for standalone; `python gradio_feedback_example.py collector` for collector demo).
+Run: `python examples/gradio_feedback_example.py` (options: `--mock`, `--port`, `--model`).
 
 ### Mock LLM (no API)
 
@@ -209,6 +215,13 @@ resp = llm.refine_prompt("Translate to English: Hello world.")
 ```bash
 pytest tests/ -v
 ```
+
+## References
+
+This framework draws inspiration from:
+
+- [Expanding the Capabilities of Reinforcement Learning](https://arxiv.org/pdf/2602.02482)
+- [Teaching Models to Teach Themselves: Reasoning at the Edge of Learnability](https://arxiv.org/pdf/2601.18778)
 
 ## License
 

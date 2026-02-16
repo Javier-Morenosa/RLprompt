@@ -16,4 +16,5 @@ You can add additional framework documentation here (API, tutorials, etc.).
 - **core**: `Prompt`, `PromptHistory`, `RefinementLoop`
 - **rl**: `PromptRefinementEnv`, rewards (`ScalarReward`, `composite_reward`), policies
 - **llm**: `LLMBackend`, `MockLLM`, `OpenAIBackend` (optional)
+- **actor_critic_loop**: `LLMActor`, `LLMCritic`, `HumanMultiSelectFeedback`, `launch_integrated`, `ActorCriticLoop`, `ActorCriticConfig`
 - **evolution**: `PromptGenome`, `Population` (including `diversity_score()`), `mutate_genome`, `crossover_genomes`, `guided_mutation`

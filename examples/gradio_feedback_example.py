@@ -1,52 +1,62 @@
-"""
-Example: Human feedback via Gradio UI.
+import argparse
+import sys
 
-Run standalone (manual query/response):
-  pip install prompt-rl[gradio]
-  python examples/gradio_feedback_example.py
-
-Or use HumanFeedbackCollector in your training loop to block until the user
-submits feedback for each (query, response) pair.
-"""
-
-def main_standalone() -> None:
-    """Launch the Gradio app; user enters query/response and submits ratings."""
-    try:
-        from prompt_rl.feedback import launch_standalone
-    except ImportError:
-        print("Install Gradio first: pip install prompt-rl[gradio]")
-        return
-    launch_standalone(server_name="127.0.0.1", server_port=7860)
-
-
-def main_with_collector() -> None:
-    """
-    Example: training loop pushes (query, response) to the UI and blocks
-    until the user submits feedback. Start the script, then in the browser
-    click "Load next task" to fetch the item, rate it, and "Submit feedback".
-    """
-    try:
-        from prompt_rl.feedback import HumanFeedbackCollector
-    except ImportError:
-        print("Install Gradio first: pip install prompt-rl[gradio]")
-        return
-
-    collector = HumanFeedbackCollector(server_name="127.0.0.1", server_port=7860)
-    collector.start()
-    print("Gradio UI is starting. Open the URL in your browser.")
-    print("When prompted, click 'Load next task', then rate and 'Submit feedback'.\n")
-
-    # Simulate one feedback request
-    result = collector.get_feedback(
-        query="What is machine learning?",
-        response="Machine learning is a subset of AI that enables systems to learn from data.",
+try:
+    from prompt_rl.actor_critic_loop import (
+        launch_integrated,
+        ActorCriticConfig,
+        LLMActor,
+        LLMCritic,
     )
-    print(f"Received score: {result.score:.2f} (thumbs_up={result.thumbs_up}, rating={result.rating})")
+    from prompt_rl.llm import MockLLM
+except ImportError:
+    print("Install: pip install prompt-rl[gradio]")
+    sys.exit(1)
+
+try:
+    from prompt_rl.llm import LocalLLMBackend
+except ImportError:
+    LocalLLMBackend = None
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mock", action="store_true", help="Use MockLLM instead of real Ollama")
+    parser.add_argument("--model", default="gemma3:1b", help="Ollama model name")
+    parser.add_argument("--base-url", default="http://localhost:11434/v1", help="Ollama API URL")
+    parser.add_argument("--port", type=int, default=7863, help="Gradio server port")
+    args = parser.parse_args()
+
+    if args.mock:
+        llm = MockLLM(default_response="Sample response.")
+        prompt_llm = response_llm = llm
+        print("Using MockLLM")
+    elif LocalLLMBackend:
+        llm = LocalLLMBackend(model=args.model, base_url=args.base_url)
+        prompt_llm = response_llm = llm
+        print(f"Using Ollama: {args.model}")
+    else:
+        llm = MockLLM(default_response="Sample response.")
+        prompt_llm = response_llm = llm
+        print("Using MockLLM (install prompt-rl[openai] for real LLM)")
+
+    config = ActorCriticConfig(num_variations=10)
+    actor = LLMActor(
+        prompt_llm=prompt_llm,
+        response_llm=response_llm,
+        max_tokens=256,
+        temperature=0.8,
+    )
+    critic = LLMCritic(llm=llm, max_tokens=256, temperature=0.3)
+    launch_integrated(
+        actor=actor,
+        critic=critic,
+        base_instruction="You are a helpful assistant.",
+        num_variations=config.num_variations,
+        server_name="127.0.0.1",
+        server_port=args.port,
+    )
 
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 1 and sys.argv[1] == "collector":
-        main_with_collector()
-    else:
-        main_standalone()
+    main()
