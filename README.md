@@ -1,6 +1,6 @@
 # RLPrompt
 
-
+[![Version](https://img.shields.io/badge/version-0.3.0-blue)](https://github.com/Javier-Morenosa/RLprompt)
 
 <img width="1572" height="512" alt="Group 3" src="https://github.com/user-attachments/assets/6a328fd7-abb0-4788-9153-e19851a412db" />
 
@@ -9,6 +9,9 @@
 
 
 Reinforcement learning framework for **prompt refinement** with LLMs (Large Language Models).
+
+**Quick try (Actor-Critic + Gradio):** `pip install -e ".[gradio,openai]"` then `python examples/gradio_feedback_example.py --mock`
+
 ## Description
 
 `RLPrompt` provides the structure for:
@@ -127,7 +130,7 @@ pip install prompt-rl[gradio,openai]
 ```
 
 ```python
-from prompt_rl.actor_critic_loop import LLMActor, LLMCritic, launch_integrated, ActorCriticConfig
+from prompt_rl import LLMActor, LLMCritic, launch_integrated, ActorCriticConfig
 from prompt_rl.llm import LocalLLMBackend
 
 llm = LocalLLMBackend(model="gemma3:1b", base_url="http://localhost:11434/v1")

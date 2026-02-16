@@ -108,7 +108,7 @@ print(step.reward, step.observation.text)
 UI Gradio con Actor-Critic: pregunta, 10 respuestas, selección múltiple, bucle automático tras cada Submit selection.
 
 ```python
-from prompt_rl.actor_critic_loop import LLMActor, LLMCritic, launch_integrated, ActorCriticConfig
+from prompt_rl import LLMActor, LLMCritic, launch_integrated, ActorCriticConfig
 from prompt_rl.llm import LocalLLMBackend
 
 llm = LocalLLMBackend(model="gemma3:1b", base_url="http://localhost:11434/v1")
@@ -348,7 +348,7 @@ from prompt_rl import Prompt, RefinementLoop
 from prompt_rl.core.prompt import PromptHistory
 from prompt_rl.rl import PromptRefinementEnv, ScalarReward, HybridReward
 from prompt_rl.llm import MockLLM, OpenAIBackend, LocalLLMBackend
-from prompt_rl.actor_critic_loop import LLMActor, LLMCritic, launch_integrated, ActorCriticLoop, ActorCriticConfig
+from prompt_rl import LLMActor, LLMCritic, launch_integrated, ActorCriticLoop, ActorCriticConfig
 from prompt_rl.evolution import PromptGenome, Population, mutate_genome, crossover_genomes
 from prompt_rl.actor_critic import Actor, Critic, RandomActor, MockCritic, generate_candidates_parallel
 from prompt_rl.training import (

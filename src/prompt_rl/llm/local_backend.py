@@ -38,9 +38,11 @@ class LocalLLMBackend(OpenAIBackend):
         **client_kwargs: Any,
     ) -> None:
         url = base_url if base_url is not None else LM_STUDIO_DEFAULT_BASE
+        # Local servers (Ollama, LM Studio) typically don't need auth; pass placeholder if None
+        key = api_key if api_key is not None else "not-needed"
         super().__init__(
             model=model,
-            api_key=api_key,
+            api_key=key,
             base_url=url,
             **client_kwargs,
         )
