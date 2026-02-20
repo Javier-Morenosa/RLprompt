@@ -1,29 +1,24 @@
 # Changelog
 
-## [0.3.0] - 2025-02-16
-
-### Added
-
-- **Actor-Critic loop** (`prompt_rl.actor_critic_loop`): flujo autónomo para refinamiento de prompts con feedback humano
-  - `LLMActor`: genera variaciones de system prompt y respuestas; recibe la query para prompts orientados a la pregunta
-  - `LLMCritic`: recibe solo (system_prompt, reward) y opcionalmente comentario humano; nunca ve query ni respuestas
-  - `HumanMultiSelectFeedback`: selección múltiple de respuestas correctas
-  - `launch_integrated()`: UI Gradio integrada con bucle automático tras cada Submit selection
-- `ActorCriticConfig`, `ActorCriticLoop` para ejecución programática
-- Ejemplos: `gradio_feedback_example.py` (Ollama/Mock, `--port`), `actor_critic_example.py`
+## [0.3.0] - 2025-02-20
 
 ### Changed
 
-- Formato de prompt en `generate_responses`: separación clara USER QUESTION / ASSISTANT RESPONSE para respuestas más relevantes
-- Actor y Critic: instrucciones reforzadas para que las respuestas sean relevantes a la pregunta del usuario
+- **Estructura como librería** (estilo TextGrad): demo Human-Watch encapsulada en `demos/human_watch/`
+- Archivos de la raíz (`server.py`, `monitor.py`, `evaluator.py`, etc.) movidos a `demos/human_watch/`
+- Paths centralizados en `PROJECT_ROOT` (raíz del repo); archivos de estado siguen en la raíz
+- Entry points: `rlprompt-backend`, `rlprompt-serve`, `rlprompt-reset`
+- Ejecución: `python -m demos.human_watch.run_backend` o `rlprompt-backend`
 
-### Fixed
+### Removed
 
-- Respuestas irrelevantes: Actor ahora recibe la query al generar variaciones; prompts refuerzan responder directamente
+- Ejemplos legacy que importaban módulos inexistentes: `actor_critic_example.py`, `gradio_feedback_example.py`, `hybrid_system_example.py`, `hybrid_local_llm_example.py`, `rl_env_example.py`
+
+### Kept
+
+- Ejemplos viables: `examples/two_stage_example.py`, `examples/validation_loop_example.py`
 
 ### References
 
-Esta actualización se inspira en:
-
 - [Expanding the Capabilities of Reinforcement Learning](https://arxiv.org/pdf/2602.02482)
-- [Teaching Models to Teach Themselves: Reasoning at the Edge of Learnability](https://arxiv.org/pdf/2601.18778)
+- [Teaching Models to Teach Themselves](https://arxiv.org/pdf/2601.18778)

@@ -1,15 +1,14 @@
-"""RL module: environment, rewards and policy for prompt refinement."""
+"""RL components: reward function, rolling history, and update gate."""
 
-from prompt_rl.rl.env import PromptRefinementEnv
-from prompt_rl.rl.policy import Policy, RandomPolicy
-from prompt_rl.rl.rewards import RewardFn, ScalarReward, HybridReward, hybrid_reward
+from prompt_rl.rl.reward  import HybridReward, word_change_ratio
+from prompt_rl.rl.history import RewardHistory
+from prompt_rl.rl.gate    import UpdateGate, GateResult, AlwaysUpdateGate
 
 __all__ = [
-    "PromptRefinementEnv",
-    "RewardFn",
-    "ScalarReward",
     "HybridReward",
-    "hybrid_reward",
-    "Policy",
-    "RandomPolicy",
+    "word_change_ratio",
+    "RewardHistory",
+    "UpdateGate",
+    "GateResult",
+    "AlwaysUpdateGate",
 ]

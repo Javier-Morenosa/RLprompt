@@ -1,5 +1,7 @@
 # Parallelization of Evaluations
 
+> **Nota:** Este documento describe paralelización para `HybridOptimizationFlow` y generación de K candidatos. La implementación actual (**Human-Watch**) procesa un ciclo a la vez; el evaluator es un subproceso. La paralelización es una extensión prevista.
+
 Evaluations can be run in parallel to reduce wall-clock time when generating K candidate responses or scoring many (prompt, query, response) triples with the Critic.
 
 ---

@@ -6,55 +6,38 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from prompt_rl.core.prompt import Prompt
-
 
 @dataclass
 class LLMResponse:
-    """Response from an LLM."""
+    """Response from an LLM completion call."""
 
-    text: str
+    text:  str
     model: str = ""
     usage: Optional[dict[str, int]] = None
-    raw: Optional[Any] = None
+    raw:   Optional[Any] = None
 
 
 class LLMBackend(ABC):
-    """Base interface for LLM backends (OpenAI, local, etc.)."""
+    """Abstract base for LLM backends (OpenAI cloud, local Ollama, mock)."""
 
     @abstractmethod
     def complete(
         self,
-        prompt: Prompt | str,
+        prompt: str,
         *,
         max_tokens: int = 512,
         temperature: float = 0.7,
         **kwargs: Any,
     ) -> LLMResponse:
         """
-        Generates a completion given a prompt.
+        Generate a completion for the given prompt text.
 
         Args:
-            prompt: Prompt or prompt text.
-            max_tokens: Maximum tokens to generate.
-            temperature: Temperature for sampling.
-            **kwargs: Additional backend arguments.
+            prompt      : Plain-text prompt sent as the user message.
+            max_tokens  : Maximum tokens to generate.
+            temperature : Sampling temperature.
 
         Returns:
-            LLMResponse with text and metadata.
+            LLMResponse with .text and optional .usage dict.
         """
         ...
-
-    def refine_prompt(
-        self,
-        prompt: Prompt | str,
-        instruction: str = "Improve this prompt while keeping its intent.",
-        **kwargs: Any,
-    ) -> LLMResponse:
-        """
-        Asks the LLM to refine a prompt according to an instruction.
-        Useful as default action in the RL environment.
-        """
-        text = prompt.text if isinstance(prompt, Prompt) else prompt
-        user = f"{instruction}\n\nCurrent prompt:\n{text}"
-        return self.complete(user, **kwargs)

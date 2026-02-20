@@ -134,9 +134,10 @@ When adding features or changing behavior, please update the README or the relev
 
 ```
 prompt_rl/
-├── src/prompt_rl/     # Main package (core, rl, llm, evolution, actor_critic, feedback, training, utils)
-├── tests/             # Pytest tests
-├── examples/          # Example scripts (basic_refinement, hybrid_system, gradio_feedback, rl_env)
+├── src/prompt_rl/     # Library (core, critic, loop, validation, rl, feedback, population, llm)
+├── demos/human_watch/ # Human-Watch demo (server, monitor, evaluator, run_backend)
+├── tests/             # Library unit tests
+├── examples/          # Examples (two_stage_example, validation_loop_example)
 ├── docs/              # Markdown documentation
 ├── pyproject.toml     # Build and tool config (Ruff, pytest)
 ├── README.md

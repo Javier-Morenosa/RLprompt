@@ -1,5 +1,7 @@
 # GPRO: Generalized Policy Optimization
 
+> **Nota:** GPRO es un algoritmo conceptual para entrenar Actor y Critic aprendibles. La implementación actual usa **TwoStageCritic** (LLM) y **OnlineCriticLoop**; no hay gradientes ni GPRO activo. Este doc describe la arquitectura prevista.
+
 **GPRO (Generalized Policy Optimization)** is the optimization algorithm that trains the Actor-Critic in the hybrid system. It updates both the Actor (policy) and the Critic (value estimator) using the stream of (query, response, reward) data from human feedback and the composite reward.
 
 ---

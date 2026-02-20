@@ -1,5 +1,7 @@
 # Key Innovations of This Approach
 
+> **Nota:** Este documento describe innovaciones conceptuales (evolución, Actor-Critic aprendible, etc.). La implementación actual (**Human-Watch**) implementa: TwoStageCritic con Backward+Optimizer, CriticValidationLoop, UpdateGate, RewardHistory, Leaderboard. La evolución guiada y GPRO están planificadas.
+
 This document describes the four main innovations of the hybrid evolutionary + Actor-Critic + human feedback system.
 
 ---

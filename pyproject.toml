@@ -28,25 +28,36 @@ classifiers = [
 dependencies = [
     "numpy>=1.21.0",
     "typing-extensions>=4.0.0",
+    "openai>=1.0.0",
 ]
 
 [project.optional-dependencies]
-openai = ["openai>=1.0.0"]
 gradio = ["gradio>=4.0.0"]
+human-watch = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "playwright>=1.40.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "ruff>=0.1.0",
 ]
-all = ["prompt-rl[openai,gradio,dev]"]
+all = ["prompt-rl[gradio,human-watch,dev]"]
 
 [project.urls]
 Homepage = "https://github.com/your-username/prompt-rl"
 Documentation = "https://github.com/your-username/prompt-rl#readme"
 Repository = "https://github.com/your-username/prompt-rl"
 
+[project.scripts]
+rlprompt-backend = "demos.human_watch.run_backend:main"
+rlprompt-serve = "demos.human_watch.run_server:main"
+rlprompt-reset = "demos.human_watch.reset_to_state_zero:main"
+
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src", "."]
+include = ["prompt_rl*", "demos*"]
 
 [tool.ruff]
 line-length = 100

@@ -1,5 +1,7 @@
 # Detailed Parametrization
 
+> **Nota:** Este documento describe extensiones conceptuales (Actor-Critic aprendible, evolución, GPRO). La implementación actual es **Human-Watch** con `TwoStageCritic`, `CriticValidationLoop`, `OnlineCriticLoop` y archivos de estado en `data/`. Los módulos `actor_critic`, `evolution`, `training`, `gpro` pueden no existir aún.
+
 This document describes the parameters of the hybrid system: Actor (θ_actor), Critic (θ_critic), the evolutionary population, and **GPRO** as the optimization algorithm that trains the Actor-Critic.
 
 ---

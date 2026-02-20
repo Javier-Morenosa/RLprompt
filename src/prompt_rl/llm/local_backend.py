@@ -1,48 +1,108 @@
-"""Backend for local / OpenAI-compatible LLM servers (LM Studio, Ollama, vLLM, etc.)."""
+"""
+Backend para modelos locales (Ollama con Gemma, LM Studio, etc.).
+
+Usa la API compatible con OpenAI para conectar a Ollama en localhost.
+"""
 
 from __future__ import annotations
 
 from typing import Any, Optional
 
 from prompt_rl.llm.base import LLMBackend, LLMResponse
-from prompt_rl.llm.openai_backend import OpenAIBackend
+
+OLLAMA_BASE = "http://localhost:11434/v1"
+LM_STUDIO_BASE = "http://localhost:1234/v1"
 
 
-# Common default base URLs for local servers (OpenAI-compatible API)
-LM_STUDIO_DEFAULT_BASE = "http://localhost:1234/v1"
-OLLAMA_OPENAI_BASE = "http://localhost:11434/v1"  # Ollama with OpenAI compatibility
+def _check_openai() -> None:
+    try:
+        import openai  # noqa: F401
+    except ImportError as exc:
+        raise ImportError(
+            "Se requiere openai para conectar a Ollama: pip install openai"
+        ) from exc
 
 
-class LocalLLMBackend(OpenAIBackend):
+class LocalLLMBackend(LLMBackend):
     """
-    Backend for local or custom LLM servers that expose an OpenAI-compatible API.
+    Backend para servidores locales OpenAI-compatible (Ollama, LM Studio, vLLM).
 
-    Use this when running a model locally (e.g. LM Studio, Ollama, vLLM, LiteLLM)
-    instead of calling the OpenAI cloud API. No OpenAI API key is required unless
-    your local server enforces one.
-
-    Examples:
-        LM Studio (default port 1234):
-            LocalLLMBackend(model="local-model", base_url="http://localhost:1234/v1")
-        Ollama (OpenAI-compatible endpoint):
-            LocalLLMBackend(model="llama3.2", base_url="http://localhost:11434/v1")
-        Custom server with API key:
-            LocalLLMBackend(model="my-model", base_url="https://...", api_key="...")
+    Ejemplos:
+        Ollama Gemma: LocalLLMBackend(model="gemma3:4b")
+        LM Studio:    LocalLLMBackend(model="local-model", base_url=LM_STUDIO_BASE)
     """
 
     def __init__(
         self,
-        model: str = "local-model",
+        model: str = "gemma3:4b",
         base_url: Optional[str] = None,
         api_key: Optional[str] = None,
         **client_kwargs: Any,
     ) -> None:
-        url = base_url if base_url is not None else LM_STUDIO_DEFAULT_BASE
-        # Local servers (Ollama, LM Studio) typically don't need auth; pass placeholder if None
-        key = api_key if api_key is not None else "not-needed"
-        super().__init__(
-            model=model,
-            api_key=key,
-            base_url=url,
-            **client_kwargs,
+        _check_openai()
+        from openai import OpenAI
+
+        self.model = model
+        kwargs: dict[str, Any] = {
+            "api_key": api_key or "not-needed",
+            "base_url": base_url or OLLAMA_BASE,
+        }
+        kwargs.update(client_kwargs)
+        self._client = OpenAI(**kwargs)
+
+    def complete(
+        self,
+        prompt: str,
+        *,
+        max_tokens: int = 512,
+        temperature: float = 0.7,
+        **kwargs: Any,
+    ) -> LLMResponse:
+        resp = self._client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens,
+            temperature=temperature,
+            **kwargs,
+        )
+        choice = resp.choices[0]
+        usage = None
+        if resp.usage:
+            usage = {
+                "prompt_tokens": resp.usage.prompt_tokens,
+                "completion_tokens": resp.usage.completion_tokens,
+                "total_tokens": resp.usage.total_tokens,
+            }
+        return LLMResponse(
+            text=choice.message.content or "",
+            model=self.model,
+            usage=usage,
+            raw=resp,
+        )
+
+    def generate_with_system(
+        self,
+        system_prompt: str,
+        user_message: str,
+        *,
+        max_tokens: int = 512,
+        temperature: float = 0.2,
+        **kwargs: Any,
+    ) -> LLMResponse:
+        """Completion con system prompt + mensaje de usuario (para Actor/validación)."""
+        resp = self._client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+            max_tokens=max_tokens,
+            temperature=temperature,
+            **kwargs,
+        )
+        choice = resp.choices[0]
+        return LLMResponse(
+            text=choice.message.content or "",
+            model=self.model,
+            raw=resp,
         )
