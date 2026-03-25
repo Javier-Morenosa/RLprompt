@@ -18,7 +18,7 @@ class LLMResponse:
 
 
 class LLMBackend(ABC):
-    """Abstract base for LLM backends (OpenAI cloud, local Ollama, mock)."""
+    """Abstract base for LLM backends (OpenAI-compatible cloud, local Ollama/Groq)."""
 
     @abstractmethod
     def complete(
