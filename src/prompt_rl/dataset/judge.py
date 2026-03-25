@@ -81,12 +81,14 @@ class ExactMatchJudge:
         extract_pattern: str | None = r"####\s*(.+)$",
         normalize_fn: "callable[[str], str] | None" = None,
         feedback_msg: str = _DEFAULT_FEEDBACK,
+        include_ground_truth: bool = True,
     ) -> None:
         self._pattern = (
             re.compile(extract_pattern, re.MULTILINE) if extract_pattern else None
         )
         self._normalize = normalize_fn or self._default_normalize
         self._feedback_msg = feedback_msg
+        self._include_ground_truth = include_ground_truth
         self._current_sample: DatasetSample | None = None
 
     @staticmethod
@@ -112,7 +114,14 @@ class ExactMatchJudge:
         return self._normalize(pred) == self._normalize(gt)
 
     def feedback(self, response: str, sample: DatasetSample) -> str:
-        return self._feedback_msg
+        if not self._include_ground_truth:
+            return self._feedback_msg
+        model_answer = self._extract(response)
+        correct_answer = sample.extracted or self._extract(sample.answer)
+        return (
+            f"{self._feedback_msg} "
+            f"El modelo respondio '{model_answer}' pero la respuesta correcta es '{correct_answer}'."
+        )
 
     # ── ValidationJudge interface (for CriticValidationLoop) ─────────────────
 
@@ -167,12 +176,14 @@ class ContainsMatchJudge:
         extract_pattern: str | None = None,
         case_sensitive: bool = False,
         feedback_msg: str = _DEFAULT_FEEDBACK,
+        include_ground_truth: bool = True,
     ) -> None:
         self._pattern = (
             re.compile(extract_pattern, re.MULTILINE) if extract_pattern else None
         )
         self._case_sensitive = case_sensitive
         self._feedback_msg = feedback_msg
+        self._include_ground_truth = include_ground_truth
         self._current_sample: DatasetSample | None = None
 
     def _extract(self, text: str) -> str:
@@ -192,7 +203,13 @@ class ContainsMatchJudge:
         return self._normalize(gt) in self._normalize(response)
 
     def feedback(self, response: str, sample: DatasetSample) -> str:
-        return self._feedback_msg
+        if not self._include_ground_truth:
+            return self._feedback_msg
+        correct_answer = sample.extracted or self._extract(sample.answer)
+        return (
+            f"{self._feedback_msg} "
+            f"La respuesta correcta es '{correct_answer}'."
+        )
 
     # ── ValidationJudge interface ─────────────────────────────────────────────
 
