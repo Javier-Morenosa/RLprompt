@@ -238,6 +238,8 @@ pytest tests/ -v      # 88 tests, no LLM required
 
 - [Expanding the Capabilities of Reinforcement Learning](https://arxiv.org/pdf/2602.02482)
 - [Teaching Models to Teach Themselves](https://arxiv.org/pdf/2601.18778)
+- [DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines](https://arxiv.org/pdf/2310.03714)
+- [TextGrad: Automatic 'Differentiation' via Text](https://arxiv.org/pdf/2406.07496)
 
 ---
 
