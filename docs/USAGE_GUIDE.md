@@ -1,558 +1,517 @@
-# Guía de uso — Human-Watch en directo
+# RLPrompt — Usage Guide
 
-Esta guía te lleva paso a paso desde arrancar el sistema hasta observar en tiempo real cómo el Crítico refina el prompt y la política converge.
+RLPrompt optimizes a system prompt through reinforcement learning.
+It supports two operating modes that share the same internal engine:
 
----
-
-## Índice
-
-1. [Requisitos previos](#1-requisitos-previos)
-2. [Reset del estado (limpieza opcional)](#2-reset-del-estado)
-3. [Arrancar el sistema (3 terminales)](#3-arrancar-el-sistema)
-4. [Interactuar con el chat](#4-interactuar-con-el-chat)
-5. [Dar feedback y cerrar ciclos](#5-dar-feedback-y-cerrar-ciclos)
-6. [Leer la salida de los terminales](#6-leer-la-salida-de-los-terminales)
-7. [Dashboard — ver el estado global](#7-dashboard)
-8. [Observar la convergencia](#8-observar-la-convergencia)
-9. [Ejecutar el test de integración](#9-test-de-integracion)
-10. [Escenarios de prueba sugeridos](#10-escenarios-de-prueba)
-11. [Solución de problemas](#11-solucion-de-problemas)
+| Mode | Signal source | Judge | Use case |
+|---|---|---|---|
+| **Online** | Live human feedback | LLM-based (subjective) | Chatbot, customer service, conversational AI |
+| **Offline** | Q&A dataset with ground truth | Deterministic (no extra LLM) | Benchmarks, math, MCQ, any task with known answers |
 
 ---
 
-## 1. Requisitos previos
+## Setup
 
-Si es la primera vez, instala el paquete y dependencias Human-Watch:
+### Requirements
+
+- Python 3.9+
+- An OpenAI-compatible LLM endpoint (Groq, Ollama, LM Studio, etc.)
+- A `GROQ_API_KEY` (or equivalent) in your environment or a `.env` file
+
+### Install
 
 ```bash
-cd C:\Users\Usuario\Downloads\Openclaw\RLprompt
+git clone https://github.com/Javier-Morenosa/RLprompt.git
+cd RLprompt
+
+# Library only
+pip install -e .
+
+# Library + Human-Watch demo (FastAPI + Playwright)
 pip install -e ".[human-watch]"
 playwright install chromium
+
+# Library + dataset experiments (HuggingFace datasets)
+pip install -e ".[gsm8k]"
+
+# Everything
+pip install -e ".[all]"
 ```
 
-**Backend LLM:** Human-Watch usa **Groq** (Llama 3.1 8B) por defecto. Necesitas `GROQ_API_KEY` en el entorno o en `.env` en la raíz del proyecto. Alternativamente, puedes configurar Ollama para los ejemplos de la librería.
+### Environment variables
 
-Verifica que todo esté listo:
+Create a `.env` file in the project root (already gitignored):
 
-```bash
-# Dependencias Python
-python -c "import fastapi, uvicorn, playwright; print('OK')"
+```env
+GROQ_API_KEY=gsk_...
 
-# API key (Groq)
-# Define GROQ_API_KEY en .env o como variable de entorno
+# Optional overrides (defaults shown)
+GROQ_BASE_URL=https://api.groq.com/openai/v1
+GROQ_MODEL=llama-3.1-8b-instant
+CRITIC_MODEL=llama-3.1-8b-instant
+ACTOR_MODEL=llama-3.1-8b-instant
 ```
 
-Si usas Ollama para los ejemplos (`two_stage_example`, `validation_loop_example`):
-```bash
-ollama list   # deben aparecer gemma3:1b y gemma3:4b
-ollama serve  # si no está corriendo
+Any OpenAI-compatible endpoint works. For local models via Ollama:
+
+```env
+GROQ_BASE_URL=http://localhost:11434/v1
+GROQ_API_KEY=ollama
+GROQ_MODEL=gemma3:4b
 ```
 
 ---
 
-## 2. Reset del estado
+## Mode 1 — Online (Chatbot with Human Feedback)
 
-Si quieres empezar desde cero (sin historial de sesiones anteriores), ejecuta esto **antes** de arrancar:
+### How it works
 
-```bash
-cd C:\Users\Usuario\Downloads\Openclaw\RLprompt
-python -m demos.human_watch.reset_to_state_zero
-# o: rlprompt-reset
+```
+Human types a message
+        │
+        ▼
+FastAPI server generates a response  (Actor)
+        │
+        ▼
+Playwright monitor records the full interaction
+        │
+Human labels: CORRECTO / INCORRECTO + optional correction text
+        │
+        ▼
+PerceptionCycle
+(system_prompt, user_query, bot_response, verdict, comment, cursor signals)
+        │
+        ▼
+TwoStageCritic
+  ├─ Backward:   "what went wrong and why?"  →  actionable feedback
+  └─ Optimizer:  "write a better prompt"     →  proposed system_prompt
+        │
+        ▼
+CriticValidationLoop
+  Re-asks the Actor with the proposed prompt
+  └─ LLMValidationJudge: "did this fix the problem?"
+     ├─ YES → accept proposal
+     └─ NO  → send feedback to Critic again (up to 3 iterations)
+        │
+        ▼
+HybridReward:  R = λ_fb·H + λ_c·C − λ_ch·word_change_ratio
+        │
+        ▼
+UpdateGate — should the policy be updated?
+  ├─ YES → write system_prompt.md  (hot-reloaded by the server on next request)
+  └─ NO  → keep current policy
+        │
+        ▼
+5 consecutive stable CORRECTO cycles → converged, evaluator stops
 ```
 
-Restaura automáticamente critic_memory, interactions.md, system_prompt.md (política mínima), reward_history.json y population.json.
-
-Si prefieres **continuar** desde donde lo dejaste, no hagas nada — el estado persiste entre sesiones.
-
----
-
-## 3. Arrancar el sistema
-
-**Opción A — Un solo comando** (recomendado):
+### Quick start
 
 ```bash
-cd C:\Users\Usuario\Downloads\Openclaw\RLprompt
+# Single command (recommended)
 python -m demos.human_watch.run_backend
-# o tras pip install:
+# or after pip install:
 rlprompt-backend
 ```
 
-Inicia servidor + monitor en uno. Cierra el navegador para detener todo.
-
-**Opción B — Terminales separadas**
-
-### Terminal 1 — Servidor de chat (Actor)
+Or in two separate terminals:
 
 ```bash
-cd C:\Users\Usuario\Downloads\Openclaw\RLprompt
+# Terminal 1 — chat server
 python -m demos.human_watch.run_server
-# o: rlprompt-serve
-```
 
-Salida esperada:
-```
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-...
-```
-
-El servidor estará disponible en `http://localhost:8000`.
-
-### Terminal 2 — Monitor de percepción (Human-Watch)
-
-```bash
-cd C:\Users\Usuario\Downloads\Openclaw\RLprompt
+# Terminal 2 — Playwright monitor (opens browser automatically)
 python -m demos.human_watch.monitor
 ```
 
-Salida esperada:
-```
-[Monitor] Sesión A3F2B1C4 | URL: http://localhost:8000
-[Monitor] Log: C:\...\data\interactions.md
+Open `http://localhost:8000` in the Chromium window and start chatting.
+Every time you label a response, the monitor writes a `PerceptionCycle` to
+`data/interactions.md` and spawns the evaluator subprocess.
 
-[Monitor] Navegador abierto. Cierra la ventana para terminar.
-```
+Open `http://localhost:8000/dashboard` to see the live reward history,
+active system prompt, and leaderboard.
 
-Se abrirá una ventana de **Chromium** con el chat. **No la cierres** — es donde interactúas.
+### State files
 
-### Terminal 3 — Log del evaluador (opcional pero recomendado)
-
-```bash
-cd C:\Users\Usuario\Downloads\Openclaw\RLprompt
-
-# Sigue el log del evaluador en tiempo real (PowerShell)
-Get-Content data/evaluator.log -Wait -Tail 20
-```
-
-O si prefieres ver el archivo directamente después de cada ciclo:
-```bash
-# En cmd clásico
-type data\evaluator.log
-```
-
----
-
-## 4. Interactuar con el chat
-
-En la ventana de Chromium verás:
-
-```
-┌──────────────────────────────┐  ┌─────────────────────────┐
-│  Chatbot de Negocio          │  │ Información de la        │
-│                              │  │ Empresa (RAG)            │
-│  [ventana de chat]           │  │                          │
-│                              │  │ Planes y Precios         │
-│  [input]  [Enviar]           │  │  - Plan Básico: 29€/mes  │
-│                              │  │  - Plan Pro: 79€/mes     │
-│  ¿Fue útil la respuesta?     │  │                          │
-│  [✓ Correcto] [✗ Incorrecto] │  │ Política de Devoluciones │
-│  [comentario...] [Enviar]    │  │ ...                      │
-└──────────────────────────────┘  └─────────────────────────┘
-```
-
-**Preguntas de prueba sugeridas** (escríbelas en el input y pulsa Enviar):
-
-| Pregunta | Respuesta esperada del bot |
+| File | Description |
 |---|---|
-| `¿el plan básico incluye IVA?` | Sí, incluye IVA del 21% |
-| `¿cuántos usuarios tiene el plan pro?` | 25 usuarios |
-| `¿cuál es la política de devoluciones?` | 30 días, sin condiciones |
-| `¿el soporte técnico 24/7 está en todos los planes?` | Solo en Plan Pro |
-| `¿cuánto cuesta el plan enterprise?` | No existe, no está en el catálogo |
+| `data/system_prompt.md` | Active policy — hot-reloaded on every chat request |
+| `data/interactions.md` | Append-only log of all perception cycles |
+| `data/reward_history.json` | Rolling reward window + convergence state |
+| `data/population.json` | Top-N prompt candidates ranked by fitness |
+| `data/critic_memory.md` | Human-readable Critic journal (shown in dashboard) |
+| `evaluator.log` | Evaluator subprocess output |
 
-Mientras el bot responde, la **Terminal 2** mostrará:
-```
-  [Ciclo 1 abierto] Consulta: "¿el plan básico incluye IVA?"
-  [Ciclo 1] Respuesta del bot recibida (87 chars)
-```
+### Reading the evaluator output
 
----
-
-## 5. Dar feedback y cerrar ciclos
-
-Después de leer la respuesta del bot, tienes que completar el ciclo de percepción:
-
-### Fase de observación (opcional pero recomendada)
-
-Antes de dar feedback, **mueve el ratón sobre el panel RAG** de la derecha. Mantén el cursor quieto más de 1 segundo sobre alguna sección. En la Terminal 2 aparecerá:
-```
-  -> [DWELL] RAG_PANEL/Planes y Precios @ (712, 234)
-```
-
-Esto simula que el humano consultó la documentación para verificar la respuesta.
-
-También puedes **seleccionar texto** en el RAG (arrastra con el ratón) para marcar la información relevante:
-```
-  -> [SELECT] "Plan Básico: 29 €/mes — 5 usuarios, 10 GB..."
-```
-
-Y pulsar el botón **"👁 Revisando documentación"** para registrar una revisión activa:
-```
-  -> [REVIEW_RAG]
-```
-
-### Dar el veredicto — ACC Signal
-
-**Si la respuesta fue correcta:**
-1. Pulsa `✓ Correcto (Sí)`
-2. (Opcional) Escribe un comentario positivo → pulsa `Enviar comentario`
-
-**Si la respuesta fue incorrecta:**
-1. Pulsa `✗ Incorrecto (No)`
-2. Escribe una corrección concreta, por ejemplo:
-   - `"No mencionó que incluye IVA del 21%"`
-   - `"Debería especificar el límite de 25 usuarios"`
-   - `"No aclaró que el soporte 24/7 es solo para Plan Pro"`
-3. Pulsa `Enviar comentario`
-
-Al enviar el comentario, el ciclo se **cierra** y la Terminal 2 mostrará:
-```
-  [Ciclo 1] Veredicto: INCORRECTO
-  [Ciclo 1] Correccion: "No mencionó que incluye IVA del 21%"
-  [Ciclo 1 cerrado y escrito]
-  [Evaluator] Lanzado en segundo plano -> data/evaluator.log
-```
-
----
-
-## 6. Leer la salida de los terminales
-
-### Terminal 2 (monitor) — lo que ves durante un ciclo
+After each labeled cycle, `data/evaluator.log` shows:
 
 ```
-  [Ciclo 1 abierto] Consulta: "¿el plan básico incluye IVA?"
-  -> [DWELL] RAG_PANEL/Planes y Precios @ (712, 234)
-  -> [SELECT] "Plan Básico: 29 €/mes..."
-  -> [REVIEW_RAG]
-  [Ciclo 1] Veredicto: INCORRECTO
-  [Ciclo 1] Correccion: "No mencionó que incluye IVA del 21%"
-  [Ciclo 1 cerrado y escrito]
-  [Evaluator] Lanzado en segundo plano -> data/evaluator.log
-```
-
-### Terminal 3 (data/evaluator.log) — lo que hace el Crítico
-
-Unos segundos después del ciclo, el evaluador termina y `data/evaluator.log` muestra algo así:
-
-```
---- 2026-02-19T15:32:10 ---
-[Evaluator] Critic model: gemma3:4b
-[Evaluator] Running Critic...
-[Evaluator] critic_score=0.42  R=-0.0730  gate=forced  change=18.3%  stable_streak=0/5  converged=False
+[Evaluator] critic_score=0.42  R=-0.0730  gate=forced  change=18.3%
 [Evaluator] Policy updated -> v6 (forced)
 ```
 
-**Qué significa cada campo:**
-
-| Campo | Significado |
+| Field | Meaning |
 |---|---|
-| `critic_score` | Puntuación que el Crítico da al prompt actual (0.0–1.0) |
-| `R` | Recompensa total: `λ_fb·H + λ_c·C − λ_ch·change_ratio` |
-| `gate` | Por qué se actualizó: `forced` (INCORRECTO+comentario) o `degradation` |
-| `change` | % de palabras que el Crítico cambió en el prompt |
-| `stable_streak` | Ciclos consecutivos estables / umbral de convergencia |
-| `converged` | Si es `True`, el evaluador ya no se lanza en ciclos futuros |
+| `critic_score` | Critic's self-assessed score for the current prompt (0–1) |
+| `R` | Total reward: `λ_fb·H + λ_c·C − λ_ch·change_ratio` |
+| `gate` | Why the policy was updated: `forced` (INCORRECTO+comment) or `degradation` |
+| `change` | % of words the Critic changed in the proposed prompt |
 
-Si la política **no se actualizó** (respuesta fue correcta, R no degrada):
+For a stable cycle (no update):
 ```
-[Evaluator] critic_score=0.91  R=+0.8320  gate=stable  change=1.2%  stable_streak=2/5  converged=False
+[Evaluator] critic_score=0.91  R=+0.8320  gate=stable  change=1.2%
 [Evaluator] Policy stable — no update.
 ```
 
-#### Modo verbose — ver todo el flujo
+Enable verbose mode to see the full Critic pipeline:
 
-Para depurar o inspeccionar el pipeline completo, activa el modo verbose:
-
-**Opción A — variable de entorno** (el monitor pasa `--verbose` al evaluador):
-```powershell
-# Windows
-$env:EVALUATOR_VERBOSE = "1"
-python -m demos.human_watch.monitor
-```
 ```bash
+# Windows PowerShell
+$env:EVALUATOR_VERBOSE = "1"
+
 # Linux / macOS
 export EVALUATOR_VERBOSE=1
-python -m demos.human_watch.monitor
 ```
 
-**Opción B — ejecución manual:**
-```bash
-python -m demos.human_watch.evaluator --verbose
-```
+### Convergence
 
-En `data/evaluator.log` verás:
-
-1. **Ciclo enviado al Critic** — `system_prompt`, `verdict`, `comment`, `observations`
-2. **Prompt al LLM** — texto que recibe el Critic (preview) y respuesta raw
-3. **Reward calculado** — H, C, change_ratio, fórmula y R_total
-4. **Gate** — `should_update`, `reason`, R_avg, `stable_streak`
-5. **Resumen** — igual que el output normal
-
-### Estructura JSON de la política
-
-El `data/system_prompt.md` usa formato JSON con tres campos:
-
-```json
-{
-  "role": "Descripción del rol del bot",
-  "hard_rules": [
-    "Regla obligatoria 1",
-    "Regla obligatoria 2"
-  ],
-  "soft_guidelines": [
-    "Directriz recomendada"
-  ]
-}
-```
-
-- **role**: identidad y contexto base del Actor
-- **hard_rules**: reglas que el Actor debe cumplir siempre
-- **soft_guidelines**: recomendaciones (opcional)
-
-El Critic decide cómo tratar el comentario del humano:
-- **direct_rule**: lo incorpora como nueva `hard_rule` (instrucción explícita)
-- **refinement**: sintetiza/refina en base al historial y la memoria
-
-### Ver el prompt actualizado
-
-```bash
-type data/system_prompt.md
-```
-
-Después de una actualización forzada verás el prompt refinado por el Crítico (en JSON).
-
-> **Hot-reload:** El servidor lee `data/system_prompt.md` en cada petición de chat. Cuando el Crítico actualiza el archivo, la siguiente respuesta del bot ya usa el prompt nuevo — no hace falta reiniciar.
-
-Para verificar que el Actor relee el prompt en cada consulta, arranca el servidor con verbose:
-
-**CMD:**
-```cmd
-set SERVER_VERBOSE=1
-python -m demos.human_watch.run_server
-```
-
-**PowerShell:**
-```powershell
-$env:SERVER_VERBOSE = "1"
-python -m demos.human_watch.run_server
-```
-En la terminal verás en cada chat algo como:
-`[Actor] Hot-reload: system_prompt.md leido | 345 chars | mtime=... | hash=...` Por ejemplo:
-```
-Eres un asistente de negocio amable y profesional. Responde ÚNICAMENTE con información
-del catálogo de la empresa. Si el usuario pregunta por precios, indica siempre si el
-precio incluye IVA (21%) y el número de usuarios incluidos. Si el usuario pregunta algo
-que no está en el catálogo, indícalo claramente. Responde en español y de forma concisa.
-```
-
----
-
-## 7. Dashboard
-
-Abre en el navegador: `http://localhost:8000/dashboard`
-
-Muestra:
+After **5 consecutive** stable CORRECTO cycles with less than 5% word change,
+the system converges and the evaluator stops running automatically:
 
 ```
-┌─────────────┐ ┌─────────────┐ ┌──────────────────────┐
-│ Versión: 6  │ │ Accuracy    │ │ Individuos (gen 6)   │
-│ del Prompt  │ │ 60% (3/5)   │ │ 6                    │
-└─────────────┘ └─────────────┘ └──────────────────────┘
-
-┌─ System Prompt Activo ──────────────────────────────────┐
-│ Eres un asistente de negocio amable...                  │
-└─────────────────────────────────────────────────────────┘
-
-┌─ Historial de Recompensas ──────────────────────────────┐
-│ 2026-02-19 15:28  ████████████████░░░░  +0.4821  CORRECTO   │
-│ 2026-02-19 15:30  ████░░░░░░░░░░░░░░░░  -0.0730  INCORRECTO │
-│ ...                                                     │
-└─────────────────────────────────────────────────────────┘
-
-┌─ Top-3 Fitness ──────┐  ┌─ Últimas 5 Correcciones ────┐
-│ #1: +0.4821          │  │ • No mencionó IVA del 21%   │
-│ #2: +0.2340          │  │ • Faltó el límite usuarios  │
-│ #3: -0.0730          │  │ ...                          │
-└──────────────────────┘  └─────────────────────────────┘
-```
-
-Recarga la página tras cada ciclo para ver la actualización.
-
----
-
-## 8. Observar la convergencia
-
-La convergencia se activa cuando durante **5 ciclos consecutivos** ocurre todo lo siguiente:
-- El humano dice `CORRECTO`
-- El Crítico propone cambios mínimos (`< 5%` de las palabras)
-
-### Cómo provocar la convergencia
-
-Repite este patrón 5 veces seguidas:
-
-1. Pregunta sobre el catálogo (algo que el bot responde bien)
-2. Marca `✓ Correcto`
-3. Envía el comentario en blanco (o no lo envíes — el ciclo se cierra igualmente al dar veredicto positivo sin comentario)
-
-> **Nota:** un ciclo CORRECTO sin comentario se cierra en la siguiente consulta, cuando el monitor abre un nuevo ciclo.
-
-### Lo que verás cuando converja
-
-En `data/evaluator.log`:
-```
-[Evaluator] critic_score=0.94  R=+0.8910  gate=stable  change=0.8%  stable_streak=5/5  converged=True
-[Evaluator] Policy stable — no update.
 [Evaluator] *** CONVERGENCIA ALCANZADA — evaluaciones suspendidas ***
 ```
 
-En el siguiente ciclo, desde la Terminal 2:
-```
-  [Ciclo 6 cerrado y escrito]
-  [Evaluator] Policy converged (5 stable cycles) — skipped.
-```
+To resume learning after convergence, simply send one INCORRECTO verdict
+with a correction comment — the gate fires as `forced` and resets the
+stability counter to 0.
 
-El evaluador ya no se lanza. El sistema se ha estabilizado.
+### Reset
 
-### Resetear la convergencia
-
-Para que el sistema vuelva a aprender después de converger, basta con dar un feedback `INCORRECTO` con comentario. El gate lo detectará como `forced`, actualizará la política, y `bump_version()` reseteará el contador de estabilidad a 0.
-
----
-
-## 9. Test de integración
-
-Verifica que el pipeline de percepción (monitor → data/interactions.md) funciona correctamente, **sin necesidad de interacción manual**.
-
-### Requisitos
-
-El servidor debe estar corriendo (Terminal 1):
 ```bash
-python -m demos.human_watch.run_server
+python -m demos.human_watch.reset_to_state_zero
+# or
+rlprompt-reset
 ```
 
-### Ejecutar el test
+### Use the library directly (online mode)
 
-En una terminal nueva:
+```python
+from prompt_rl import (
+    PerceptionCycle, ActivePolicy,
+    TwoStageCritic, CriticValidationLoop,
+    Actor, LLMValidationJudge,
+    OnlineCriticLoop, RewardHistory, Leaderboard,
+)
+from prompt_rl.llm.local_backend import LocalLLMBackend
+
+backend = LocalLLMBackend(
+    model="llama-3.1-8b-instant",
+    base_url="https://api.groq.com/openai/v1",
+    api_key="gsk_...",
+)
+
+critic = CriticValidationLoop(
+    critic=TwoStageCritic(backend=backend),
+    actor=Actor(backend=backend),
+    judge=LLMValidationJudge(backend=backend),
+    max_iterations=3,
+    skip_validation_if_correct=True,
+)
+
+loop = OnlineCriticLoop(
+    critic=critic,
+    policy=ActivePolicy(path="system_prompt.md"),
+    history=RewardHistory.from_file("reward_history.json"),
+    leaderboard=Leaderboard.from_file("population.json"),
+)
+
+# Process one human interaction
+cycle = PerceptionCycle(
+    system_prompt="You are a helpful assistant.",
+    user_query="What is the refund policy?",
+    bot_response="We offer a 30-day money-back guarantee.",
+    verdict="INCORRECTO",
+    comment="The policy is 14 days, not 30.",
+)
+
+result = loop.process_cycle(cycle)
+print(f"R={result.R_total:+.4f}  updated={result.gate.should_update}")
+```
+
+---
+
+## Mode 2 — Offline (Dataset with Ground Truth)
+
+### How it works
+
+```
+Load dataset  →  DatasetSplit (train / test)
+        │
+        ▼
+For each sample in train:
+
+  Actor generates response with current system_prompt
+        │
+        ▼
+  ExactMatchJudge.is_correct(response, sample)
+  │
+  ├─ CORRECTO  →  fast path (no Critic call, reward still recorded)
+  │
+  └─ INCORRECTO
+          │
+          ▼
+          ExactMatchJudge.feedback(response, sample)
+          → "El modelo respondio '5' pero la respuesta correcta es '7'."
+          │
+          │  This comment is the ground truth signal — equivalent to
+          │  the human correction comment in online mode.
+          │
+          ▼
+          TwoStageCritic receives verdict + correction comment
+            ├─ Backward:   "what rule is the model missing?"
+            └─ Optimizer:  "write a better system_prompt"
+          │
+          ▼
+          CriticValidationLoop re-asks Actor with proposed prompt
+            ExactMatchJudge.judge() — deterministic check (no extra LLM call)
+            ├─ FIXED   → accept proposal
+            └─ STILL WRONG → send feedback again (up to 3 iterations)
+          │
+          ▼
+          UpdateGate — write new system_prompt if gate fires
+        │
+        ▼
+Evaluate on test set  →  DatasetResult (acc_before, acc_after, delta)
+```
+
+The ground truth answer plays the same role as the human correction comment
+in online mode — it tells the Critic exactly what was wrong and what the
+correct answer is, so the Backward stage can generate specific, actionable
+feedback for the Optimizer.
+
+### Quick start — GSM8K experiment
+
 ```bash
-cd C:\Users\Usuario\Downloads\Openclaw\RLprompt
-python -m demos.human_watch.tests.test_monitor
+# Step 1 — download 100 GSM8K samples (80 train / 20 test)
+python examples/gsm8k_experiment/download_gsm8k.py
+
+# Step 2 — train and evaluate
+python examples/gsm8k_experiment/run_gsm8k_train.py
+
+# Optional: evaluate on test every 20 training steps
+python examples/gsm8k_experiment/run_gsm8k_train.py --eval-every 20
+
+# Optional: curate a harder subset (only samples where the empty prompt fails)
+python examples/gsm8k_experiment/run_gsm8k_train.py --curate
 ```
 
-El test lanza un Chromium en modo headless, simula toda la secuencia (envío de mensaje → dwell → selección → feedback INCORRECTO + comentario) y verifica 14 puntos del log:
+Results are saved to `data/gsm8k_experiment/results.json`:
 
-```
-[test] Fetching system prompt...
-[test] OK — 187 chars
-
-[test] Opening http://localhost:8000 ...
-[test] Page loaded
-
-[test] (2) Sending user query...
-[test] (3) Dwelling on RAG section...
-[test] (3) Selecting text in RAG...
-[test] (3) Clicking Review RAG button...
-[test] (4) Clicking Incorrecto (No)...
-[test] (4) Submitting correction comment...
-
-  [PASS] Session header
-  [PASS] Ciclo block written
-  [PASS] (1) Predictive model
-  [PASS] (2) User query
-  [PASS] (2) Bot response
-  [PASS] (3) Observation (DWELL)
-  [PASS] (3) Observation (SELECT)
-  [PASS] (3) Observation (REVIEW)
-  [PASS] (4) ACC verdict
-  [PASS] (4) Correction comment
-  [PASS] [RAW] telemetry section
-  [PASS] [RAW] click logged
-  [PASS] [RAW] cursor logged
-  [PASS] Session footer
-
-[test] ALL CHECKS PASSED
+```json
+{
+  "acc_before": 0.30,
+  "acc_after":  0.55,
+  "delta":      0.25,
+  "n_updates":  7,
+  "n_train":    80,
+  "n_test":     20
+}
 ```
 
-> **Importante:** el test prueba el pipeline monitor → `data/interactions.md`. No invoca al Crítico ni a `evaluator.py` — eso es intencional. El test aísla la capa de percepción del RL loop.
+### Use the library directly (offline mode)
 
----
+```python
+import json
+from prompt_rl import (
+    ActivePolicy, Actor,
+    TwoStageCritic, CriticValidationLoop,
+    DatasetLoop, DatasetSplit, ExactMatchJudge,
+    RewardHistory, Leaderboard,
+)
+from prompt_rl.llm.local_backend import LocalLLMBackend
 
-## 10. Escenarios de prueba
+# 1. Backend
+backend = LocalLLMBackend(
+    model="llama-3.1-8b-instant",
+    base_url="https://api.groq.com/openai/v1",
+    api_key="gsk_...",
+)
+actor = Actor(backend=backend, max_tokens=512, temperature=0.1)
 
-### Escenario A — Refinamiento forzado (INCORRECTO + comentario)
+# 2. Load your dataset
+train_raw = json.loads(open("data/train.json", encoding="utf-8").read())
+test_raw  = json.loads(open("data/test.json",  encoding="utf-8").read())
 
-**Objetivo:** ver cómo el Crítico edita el prompt en una sola iteración.
+split = DatasetSplit.from_dicts(
+    train=train_raw,
+    test=test_raw,
+    question_key="question",    # adjust to your field names
+    answer_key="answer",
+    extracted_key="extracted",  # normalized answer for comparison
+)
 
-1. Pregunta: `¿el plan básico cuántos usuarios incluye?`
-2. Si el bot no menciona "5 usuarios" → marca `INCORRECTO` + escribe `"Debe indicar que el Plan Básico incluye 5 usuarios"`
-3. Observa `data/evaluator.log` → verás `gate=forced` y el prompt actualizado
-4. Repite la misma pregunta → el bot debería ahora incluir ese dato
+# Or split from a single list:
+# split = DatasetSplit.from_list(all_samples, train_ratio=0.8, seed=42)
 
----
+# 3. Judge — deterministic, sends ground truth to the Critic as feedback
+judge = ExactMatchJudge(
+    extract_pattern=r"####\s*(.+)$",  # extract answer after ####
+    include_ground_truth=True,        # "correct answer is X" in Critic feedback
+)
 
-### Escenario B — Ciclo correcto (sin actualización)
+# 4. Critic with iterative validation using the same deterministic judge
+critic = CriticValidationLoop(
+    critic=TwoStageCritic(backend=backend),
+    actor=actor,
+    judge=judge,          # ExactMatchJudge also implements ValidationJudge
+    max_iterations=3,
+    skip_validation_if_correct=True,
+)
 
-**Objetivo:** confirmar que la política no cambia cuando el bot responde bien.
+# 5. Policy — start from an empty prompt
+policy = ActivePolicy(path="data/system_prompt.md", backup_dir="data/prompts")
+policy.write("", 0)
 
-1. Pregunta: `¿cuánto cuesta el plan pro?`
-2. Si el bot responde correctamente → marca `✓ Correcto`
-3. En `data/evaluator.log` verás `gate=stable` → "Policy stable — no update."
-4. `data/system_prompt.md` no cambia
+# 6. DatasetLoop
+loop = DatasetLoop(
+    critic=critic,
+    policy=policy,
+    actor=actor,
+    judge=judge,
+    history=RewardHistory(),
+    leaderboard=Leaderboard(),
+    verbose=True,
+)
 
----
+# 7. Train and evaluate
+result = loop.train(
+    train_samples=split.train,
+    test_samples=split.test,
+    eval_every=20,    # 0 = evaluate only at start and end
+    max_epochs=1,
+)
 
-### Escenario C — Convergencia acelerada
+loop.save_state("data/reward_history.json", "data/population.json")
 
-**Objetivo:** llegar a `converged=True` en 5 ciclos.
+print(f"Accuracy: {result.acc_before:.1%} -> {result.acc_after:.1%}  "
+      f"(delta={result.delta:+.1%}, updates={result.n_updates})")
+print(f"\nFinal prompt:\n{result.final_prompt}")
+```
 
-Repite 5 veces:
-1. Pregunta algo que el bot responde bien
-2. Marca `✓ Correcto`
-3. No añadas comentario (o añade uno vacío)
-4. Envía la siguiente pregunta
+### Bring your own dataset
 
-En el quinto ciclo, `data/evaluator.log` mostrará `converged=True` y el monitor empezará a saltarse el evaluador.
+Any dataset with a question and a known correct answer works.
+Adapt the judge to your answer format:
 
----
-
-### Escenario D — Recuperación tras convergencia
-
-**Objetivo:** demostrar que el sistema retoma el aprendizaje si el humano detecta un error nuevo.
-
-1. Lleva el sistema a convergencia (Escenario C)
-2. Pregunta algo que el bot responde mal
-3. Marca `INCORRECTO` + escribe la corrección
-4. El evaluador se lanza de nuevo (`gate=forced`)
-5. La convergencia se resetea a `stable_streak=0`
-
----
-
-## 11. Solución de problemas
-
-| Problema | Causa probable | Solución |
+| Task type | Judge | Notes |
 |---|---|---|
-| El navegador no abre | Playwright no tiene Chromium | `playwright install chromium` |
-| `[Evaluator] GROQ_API_KEY no definida` | Falta la API key de Groq | Crea `.env` con `GROQ_API_KEY=...` o exporta la variable |
-| El evaluador no produce output en el log | Ollama/Groq tardó mucho o falló | Comprueba la API key; revisa `data/evaluator.log` completo |
-| El prompt no cambia tras INCORRECTO | El comentario estaba vacío | El gate `forced` requiere comentario no vacío; escribe una corrección concreta |
-| `data/interactions.md` crece demasiado | Muchas sesiones acumuladas | Se archiva automáticamente en `data/logs/` al superar 200 KB; o bórralo manualmente |
-| El test falla en `(2) Bot response` | Gemma tardó más de 6 s | Aumenta el timeout en `test_monitor.py` línea 67: `await page.wait_for_timeout(10000)` |
-| `data/reward_history.json` — KeyError | Fichero de una versión antigua | Ejecuta `rlprompt-reset` o bórralo y deja que se regenere |
-| El servidor no carga en puerto 8000 | Puerto ocupado | `python -m demos.human_watch.run_server 9000` y `TARGET_URL=http://localhost:9000` para el monitor |
+| Math / numeric (GSM8K) | `ExactMatchJudge(extract_pattern=r"####\s*(.+)$")` | Extracts number after `####` |
+| Short answer / fill-in-blank | `ExactMatchJudge(extract_pattern=None)` | Compares full response |
+| Multiple choice (A/B/C/D) | `ExactMatchJudge(extract_pattern=r"\b([A-D])\b")` | Extracts single letter |
+| Open-ended with known keyword | `ContainsMatchJudge()` | Response must contain the expected text |
+
+```python
+from prompt_rl import DatasetSample, DatasetSplit, ExactMatchJudge
+
+# Multiple choice example
+samples = [
+    DatasetSample(
+        question="What is the capital of France?\nA) London  B) Paris  C) Berlin  D) Rome",
+        answer="B) Paris",
+        extracted="B",
+    ),
+    # ...
+]
+
+split = DatasetSplit.from_list(samples, train_ratio=0.8, seed=42)
+judge = ExactMatchJudge(extract_pattern=r"\b([A-D])\b")
+```
 
 ---
 
-## Flujo completo resumido
+## Architecture overview
 
 ```
-[Terminal 1]                    [Chromium]               [Terminal 2]          [evaluator.log]
-run_server / run_backend  →   chat UI abierto
-                         escribe pregunta    →   [Ciclo N abierto]
-                         bot responde        →   Respuesta recibida
-                         mueve ratón RAG     →   [DWELL] / [SELECT]
-                         pulsa Incorrecto    →   Veredicto: INCORRECTO
-                         escribe corrección  →   [Ciclo N cerrado]
-                         pulsa Enviar        →   [Evaluator] Lanzado
-                                                                    →  Critic llama a LLM (Groq/Ollama)
-                                                                    →  R=-0.07  gate=forced
-                                                                    →  Policy updated -> vN+1
-                         siguiente pregunta  →   [Ciclo N+1 abierto]
+prompt_rl/
+├── core/          PerceptionCycle, ActivePolicy
+├── llm/           LLMBackend (ABC), LocalLLMBackend
+├── critic/        TwoStageCritic (Backward + Optimizer), CriticMemory
+├── validation/    Actor, LLMValidationJudge, CriticValidationLoop
+├── rl/            HybridReward, RewardHistory, UpdateGate
+├── population/    PromptGenome, Leaderboard
+├── feedback/      FeedbackAggregator, CursorTrace       [online only]
+├── loop/          OnlineCriticLoop  ← shared engine
+└── dataset/       DatasetSample, DatasetSplit            [offline only]
+                   ExactMatchJudge, ContainsMatchJudge
+                   DatasetLoop, DatasetResult, EpochMetrics
+
+demos/
+└── human_watch/   FastAPI server + Playwright monitor    [online demo]
+
+examples/
+└── gsm8k_experiment/  download, curate, train, eval     [offline demo]
 ```
+
+Both modes share the same `OnlineCriticLoop` engine internally.
+`DatasetLoop` wraps it and drives it with dataset samples instead of
+live human interactions.
+
+---
+
+## HybridReward tuning
+
+```
+R = λ_feedback · H + λ_critic · C − λ_change · word_change_ratio
+```
+
+| Parameter | Default | Description |
+|---|---|---|
+| `lambda_feedback` | `0.9` | Weight of human/judge verdict (dominant signal) |
+| `lambda_critic` | `0.1` | Weight of Critic's self-assessed score |
+| `lambda_change` | `0.3` | Penalty for large prompt rewrites |
+| `max_change_ratio` | `0.35` | Rewrites beyond 35% of words are blocked entirely |
+
+```python
+from prompt_rl import HybridReward
+
+reward_fn = HybridReward(lambda_feedback=0.9, lambda_critic=0.1, lambda_change=0.3)
+loop = DatasetLoop(..., reward_fn=reward_fn)
+```
+
+---
+
+## FAQ
+
+**Q: Can I use any LLM, not just Groq?**
+Yes. `LocalLLMBackend` works with any OpenAI-compatible endpoint.
+Set `GROQ_BASE_URL` and `GROQ_MODEL` (or pass them directly to `LocalLLMBackend`).
+
+**Q: What happens when the policy converges (online mode)?**
+After 5 consecutive CORRECTO cycles with less than 5% word change,
+`RewardHistory.converged` becomes `True` and the monitor stops spawning
+the evaluator. Send one INCORRECTO verdict to resume learning.
+
+**Q: Can I run multiple epochs over the dataset?**
+```python
+result = loop.train(split.train, test_samples=split.test, max_epochs=3)
+```
+
+**Q: The Critic keeps rewriting the whole prompt. How do I prevent that?**
+`UpdateGate` blocks rewrites where `word_change_ratio > max_change_ratio`
+(default 35%). Reduce `max_change_ratio` or increase `lambda_change` to
+penalize large changes more.
+
+**Q: How do I inspect what the Critic is doing?**
+```python
+critic = TwoStageCritic(backend=backend, verbose=True)
+loop   = CriticValidationLoop(..., verbose=True)
+```
+In online mode, check `data/critic_memory.md` or `http://localhost:8000/dashboard`.
+
+**Q: The browser does not open (online mode).**
+Run `playwright install chromium` then retry.
+
+**Q: `GROQ_API_KEY` not set error.**
+Create `.env` in the project root with `GROQ_API_KEY=gsk_...`
