@@ -50,10 +50,10 @@ from prompt_rl import (
 from prompt_rl.core.policy_schema import ensure_policy_file
 from prompt_rl.llm.local_backend import LocalLLMBackend
 
-GROQ_BASE     = "https://api.groq.com/openai/v1"
+GROQ_BASE     = os.environ.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
 GROQ_API_KEY  = os.environ.get("GROQ_API_KEY", "")
-CRITIC_MODEL  = "llama-3.1-8b-instant"
-ACTOR_MODEL   = "llama-3.1-8b-instant"
+CRITIC_MODEL  = os.environ.get("CRITIC_MODEL", "llama-3.1-8b-instant")
+ACTOR_MODEL   = os.environ.get("ACTOR_MODEL", "llama-3.1-8b-instant")
 
 LOG_FILE           = DATA_DIR / "interactions.md"
 SYSTEM_PROMPT_FILE = DATA_DIR / "system_prompt.md"

@@ -165,11 +165,15 @@ def _write_cycle(c: PerceptionCycle) -> None:
             f.write("- (sesion terminada sin veredicto explicito)\n")
         f.write("\n")
 
-        elapsed = (
-            datetime.strptime(ts.split(" ")[1], "%H:%M:%S")
-            - datetime.strptime(c.started_at.split(".")[0], "%H:%M:%S")
-        )
-        f.write(f"**[RAW] Telemetria Cruda — duracion del ciclo: {elapsed.seconds}s**\n")
+        try:
+            end_dt = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
+            start_dt = datetime.strptime(
+                ts.split(" ")[0] + " " + c.started_at.split(".")[0], "%Y-%m-%d %H:%M:%S"
+            )
+            elapsed_s = max(0, int((end_dt - start_dt).total_seconds()))
+        except Exception:
+            elapsed_s = 0
+        f.write(f"**[RAW] Telemetria Cruda — duracion del ciclo: {elapsed_s}s**\n")
         f.write(f"- Ciclo iniciado: {c.started_at} | Ciclo cerrado: {ts.split(' ')[1]}\n")
         if c.raw_events:
             for line in c.raw_events:

@@ -278,7 +278,7 @@ C  = critic_score    [0, 1]   TwoStageCritic output
 λ_change             penalises large rewrites (keeps changes minimal)
 ```
 
-Default weights: `λ_feedback=0.5, λ_critic=0.5, λ_change=0.3`.
+Default weights: `λ_feedback=0.9, λ_critic=0.1, λ_change=0.3`.
 
 ### Update triggers
 

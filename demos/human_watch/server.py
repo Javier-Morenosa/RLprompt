@@ -43,8 +43,8 @@ from openai import AsyncOpenAI
 from prompt_rl.core.policy_schema import build_actor_system_text, parse_policy
 
 # ── Groq config ─────────────────────────────────────────────────────────────────
-_GROQ_BASE = "https://api.groq.com/openai/v1"
-_GROQ_MODEL = "llama-3.1-8b-instant"
+_GROQ_BASE = os.environ.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+_GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant")
 _GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
 if not _GROQ_API_KEY:
@@ -448,12 +448,21 @@ async def chat(body: dict):
         )
         bot_reply = resp.choices[0].message.content.strip()
         return {"response": bot_reply}
-    except Exception as exc:
-        return {"response": f"[Error al conectar con Groq: {exc}]"}
+    except Exception:
+        return {"response": "Lo siento, hubo un error al procesar tu solicitud. Por favor, inténtalo de nuevo."}
 
 
 @app.post("/clear-history")
 async def clear_history(body: dict):
+    try:
+        if _HISTORY_FILE.exists():
+            _HISTORY_FILE.unlink()
+        if _POPULATION_FILE.exists():
+            _POPULATION_FILE.unlink()
+        if _INTERACTIONS_FILE.exists():
+            _INTERACTIONS_FILE.write_text("", encoding="utf-8")
+    except Exception:
+        return {"status": "error"}
     return {"status": "cleared"}
 
 
