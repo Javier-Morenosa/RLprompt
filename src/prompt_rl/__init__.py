@@ -1,5 +1,14 @@
 """
-prompt_rl — Online RL library for system-prompt refinement with human feedback.
+prompt_rl — RL library for system-prompt refinement with LLMs.
+
+Supports two operating modes:
+
+  Online (chatbot)  — human feedback drives the loop in real time via a
+                      FastAPI server + Playwright monitor (demos/human_watch).
+
+  Offline (dataset) — a Q&A dataset with train/test split drives the loop
+                      automatically; correctness is evaluated deterministically
+                      (no extra LLM calls). See prompt_rl.dataset.
 
 Public surface:
 
@@ -10,22 +19,22 @@ Public surface:
     Critic
         PerceptionCritic      — protocol
         LLMPerceptionCritic   — blind (solo verdict+comment)
-        TwoStageCritic        — Critic en dos etapas con contexto completo
-        CriticBackward        — Critic 1.1: feedback accionable
-        CriticOptimizer       — Critic 1.2: nuevo system prompt
-        CriticOutput          — score + proposed_prompt + reasoning + nota
-        CriticMemory          — persistent journal
+        TwoStageCritic        — context-aware two-stage critic
+        CriticBackward        — stage 1: actionable feedback
+        CriticOptimizer       — stage 2: new system prompt
+        CriticOutput          — score + proposed_prompt + reasoning
+        CriticMemory          — persistent critic journal
 
     RL components
         HybridReward      — R = λ_fb*H + λ_c*C - λ_ch*change_ratio
         RewardHistory     — rolling window + convergence tracking
         UpdateGate        — degradation / forced update conditions
-        AlwaysUpdateGate  — actualiza en cada ciclo
+        AlwaysUpdateGate  — updates on every cycle
 
-    Feedback
+    Feedback (online mode)
         FeedbackAggregator
         thumbs_to_score, reading_time_to_score
-        CursorTrace, HumanFeedbackResult  — trazado cursor + evaluación humana
+        CursorTrace, HumanFeedbackResult
 
     Population
         PromptGenome      — modular prompt structure
@@ -33,16 +42,27 @@ Public surface:
         Individual
 
     Loop
-        OnlineCriticLoop  — ties everything together
+        OnlineCriticLoop  — single-event processor (chatbot mode)
         LoopResult
+        DatasetLoop       — dataset iterator (offline mode)
+        DatasetResult, EpochMetrics
 
-    Validation (flujo de validación con refinamiento)
-        Actor               — genera respuestas con system_prompt + user_query
-        ValidationJudge     — juzga si la nueva respuesta solucionó el problema
-        CriticValidationLoop — wrapper del critic con validación iterativa
+    Dataset (offline mode)
+        DatasetSample     — question + answer + extracted + metadata
+        DatasetSplit      — train/test split with reproducible shuffling
+        DatasetJudge      — deterministic correctness protocol
+        ExactMatchJudge   — normalized exact-string match
+        ContainsMatchJudge — substring containment match
+
+    Validation
+        Actor               — generates responses from system_prompt + query
+        ValidationJudge     — checks if new response fixes the problem
+        LLMValidationJudge  — LLM-based judge
+        CriticValidationLoop — critic wrapper with iterative validation
 
     LLM backends
-        LocalLLMBackend   — Ollama (Gemma) local
+        LLMBackend, LLMResponse
+        LocalLLMBackend   — OpenAI-compatible endpoint (Groq, Ollama, etc.)
 """
 
 __version__ = "1.0.0"
@@ -74,8 +94,18 @@ from prompt_rl.validation             import (
     CriticValidationLoop,
     ValidationLoopResult,
 )
-from prompt_rl.llm.base      import LLMBackend, LLMResponse
+from prompt_rl.llm.base          import LLMBackend, LLMResponse
 from prompt_rl.llm.local_backend import LocalLLMBackend
+from prompt_rl.dataset           import (
+    DatasetSample,
+    DatasetSplit,
+    DatasetJudge,
+    ExactMatchJudge,
+    ContainsMatchJudge,
+    DatasetLoop,
+    DatasetResult,
+    EpochMetrics,
+)
 
 __all__ = [
     # core
@@ -99,4 +129,8 @@ __all__ = [
     "CriticValidationLoop", "ValidationLoopResult",
     # llm
     "LLMBackend", "LLMResponse", "LocalLLMBackend",
+    # dataset (offline mode)
+    "DatasetSample", "DatasetSplit",
+    "DatasetJudge", "ExactMatchJudge", "ContainsMatchJudge",
+    "DatasetLoop", "DatasetResult", "EpochMetrics",
 ]
