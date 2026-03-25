@@ -2,6 +2,8 @@
 
 > **Nota:** Este documento describe métricas para sistemas con evolución y TrainingLoop. La implementación actual (**Human-Watch**) usa `RewardHistory` (R_avg, consecutive_stable, converged), `Leaderboard` (fitness) y el dashboard en `/dashboard`. Los módulos `MetricsCollector`, `TrainingLoop` pueden no existir aún.
 
+> **Código de ejemplo:** Los fragmentos de este documento son de diseño conceptual. Los módulos `prompt_rl.utils`, `prompt_rl.training`, `prompt_rl.actor_critic`, etc. pueden no existir en la implementación actual.
+
 This document describes metrics you can use to assess that the hybrid system is improving over time: fitness over time, variance between prompts, user satisfaction, convergence speed, and population diversity.
 
 ---

@@ -27,7 +27,7 @@ Thank you for your interest in contributing to **prompt-rl**. This document expl
 
 ## Getting started
 
-- **Bug reports and feature requests:** Open an [issue](https://github.com/your-username/prompt-rl/issues). For bugs, include Python version, steps to reproduce, and expected vs actual behavior.
+- **Bug reports and feature requests:** Open an [issue](https://github.com/Javier-Morenosa/RLprompt/issues). For bugs, include Python version, steps to reproduce, and expected vs actual behavior.
 - **Small fixes:** Feel free to open a pull request directly (e.g. typos, docs).
 - **Larger changes:** Open an issue first to discuss design or scope, then submit a PR when ready.
 
@@ -38,8 +38,8 @@ Thank you for your interest in contributing to **prompt-rl**. This document expl
 1. **Fork and clone the repository:**
 
    ```bash
-   git clone https://github.com/YOUR_USERNAME/prompt-rl.git
-   cd prompt-rl
+   git clone https://github.com/Javier-Morenosa/RLprompt.git
+   cd RLprompt
    ```
 
 2. **Create a virtual environment (recommended):**
@@ -53,7 +53,7 @@ Thank you for your interest in contributing to **prompt-rl**. This document expl
 3. **Install in editable mode with dev and optional dependencies:**
 
    ```bash
-   pip install -e ".[dev,openai,gradio]"
+   pip install -e ".[dev,gradio]"
    ```
 
    This gives you tests, coverage, linting, and optional backends for local experimentation.
@@ -74,11 +74,17 @@ Thank you for your interest in contributing to **prompt-rl**. This document expl
   pytest --cov=prompt_rl --cov-report=term-missing
   ```
 
-- Run a specific test file or test:
+- Run integration tests (Human-Watch demo; requires server on :8000):
 
   ```bash
-  pytest tests/test_core.py
-  pytest tests/test_core.py -k "test_prompt"
+  python -m demos.human_watch.tests.test_flow
+  python -m demos.human_watch.tests.test_monitor
+  ```
+
+- Run a specific test with pytest (if present in `tests/`):
+
+  ```bash
+  pytest tests/ -v
   ```
 
 All new code is expected to be covered by tests where practical. Bug fixes should include a test that reproduces the bug.

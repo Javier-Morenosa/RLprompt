@@ -19,3 +19,14 @@ wheels/
 .installed.cfg
 *.egg
 .env
+
+# Runtime state and experiment outputs
+data/*.json
+data/*.md
+data/gsm8k/
+data/gsm8k_experiment/
+data/logs/
+data/prompts/
+evaluator.log
+*.bak
+system_prompt.md.bak

@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prompt-rl"
-version = "0.3.0"
+version = "1.0.0"
 description = "Reinforcement learning framework for prompt refinement with LLMs"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.9"
 authors = [
-    { name = "Your Name", email = "your@email.com" }
+    { name = "Javier Morenosa", email = "Javier-Morenosa@users.noreply.github.com" }
 ]
 keywords = ["llm", "reinforcement-learning", "prompt-engineering", "nlp"]
 classifiers = [
@@ -43,12 +43,15 @@ dev = [
     "pytest-cov>=4.0.0",
     "ruff>=0.1.0",
 ]
-all = ["prompt-rl[gradio,human-watch,dev]"]
+gsm8k = [
+    "datasets>=2.14.0",
+]
+all = ["prompt-rl[gradio,human-watch,dev,gsm8k]"]
 
 [project.urls]
-Homepage = "https://github.com/your-username/prompt-rl"
-Documentation = "https://github.com/your-username/prompt-rl#readme"
-Repository = "https://github.com/your-username/prompt-rl"
+Homepage = "https://github.com/Javier-Morenosa/RLprompt"
+Documentation = "https://github.com/Javier-Morenosa/RLprompt#readme"
+Repository = "https://github.com/Javier-Morenosa/RLprompt"
 
 [project.scripts]
 rlprompt-backend = "demos.human_watch.run_backend:main"

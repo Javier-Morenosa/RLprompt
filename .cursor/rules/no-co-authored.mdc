@@ -1,0 +1,9 @@
+---
+description: No añadir Co-authored-by de Cursor a los commits
+alwaysApply: true
+---
+
+# Commits y contribuidores
+
+- **Nunca** añadir líneas `Co-authored-by: Cursor <cursoragent@cursor.com>` ni similares a los mensajes de commit.
+- Los commits deben aparecer solo con el autor humano del proyecto, no con cursoragent como contribuidor.

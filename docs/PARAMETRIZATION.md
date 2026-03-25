@@ -2,6 +2,8 @@
 
 > **Nota:** Este documento describe extensiones conceptuales (Actor-Critic aprendible, evolución, GPRO). La implementación actual es **Human-Watch** con `TwoStageCritic`, `CriticValidationLoop`, `OnlineCriticLoop` y archivos de estado en `data/`. Los módulos `actor_critic`, `evolution`, `training`, `gpro` pueden no existir aún.
 
+> **Código de ejemplo:** Los fragmentos de este documento son de diseño conceptual. Los módulos `prompt_rl.utils`, `prompt_rl.training`, `prompt_rl.actor_critic`, etc. pueden no existir en la implementación actual.
+
 This document describes the parameters of the hybrid system: Actor (θ_actor), Critic (θ_critic), the evolutionary population, and **GPRO** as the optimization algorithm that trains the Actor-Critic.
 
 ---

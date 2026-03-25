@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.0] - 2025-03-07
+
+### Changed
+
+- **Versión unificada** a 1.0.0 en pyproject.toml, __init__.py y README
+- **Metadatos:** authors y project.urls actualizados (Javier-Morenosa/RLprompt)
+- **Documentación:** corrección de referencias obsoletas (critic.two_stage → critic.two_stage_critic, system_prompt.txt → system_prompt.md)
+- **CONTRIBUTING:** pip install sin openai redundante; referencias a tests actualizadas (integración en demos/human_watch/tests/)
+- **Docs conceptuales:** aviso explícito de que el código de ejemplo es de diseño y puede no existir en la implementación actual
+
+### Added
+
+- **Exports públicos:** CriticBackward, CriticOptimizer, BackwardOutput añadidos a la API pública del paquete
+
+### Fixed
+
+- **.gitignore:** exclusión de datos de runtime y experimentos (data/*.json, data/*.md, data/gsm8k/, data/gsm8k_experiment/, data/logs/, data/prompts/, evaluator.log)
+
+---
+
 ## [0.3.0] - 2025-02-20
 
 ### Changed

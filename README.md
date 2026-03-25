@@ -51,7 +51,7 @@ RLprompt/
 ├── src/prompt_rl/               ← Library (importable package)
 │   ├── core/
 │   │   ├── cycle.py             # PerceptionCycle — fundamental data unit
-│   │   └── policy.py            # ActivePolicy — manages system_prompt.txt
+│   │   └── policy.py            # ActivePolicy — manages system_prompt.md
 │   ├── llm/
 │   │   ├── base.py              # LLMBackend ABC + LLMResponse
 │   │   └── local_backend.py     # LocalLLMBackend (Ollama/Gemma)
@@ -117,7 +117,7 @@ pip install -e ".[dev]"               # + pytest, ruff
 | `PerceptionCycle` | `core.cycle` | One feedback loop (system_prompt + verdict + comment + dwell) |
 | `ActivePolicy` | `core.policy` | Reads / writes `system_prompt.md` with versioned backup |
 | `PerceptionCritic` | `critic.base` | Protocol: `evaluate(cycle) -> CriticOutput` |
-| `TwoStageCritic` | `critic.two_stage` | Critic en dos etapas (Backward + Optimizer) |
+| `TwoStageCritic` | `critic.two_stage_critic` | Critic en dos etapas (Backward + Optimizer) |
 | `CriticValidationLoop` | `validation.loop` | Valida propuestas antes de aceptar |
 | `CriticOutput` | `critic.base` | `(critic_score, proposed_prompt, reasoning)` |
 | `HybridReward` | `rl.reward` | `R = λ_fb·H + λ_c·C − λ_ch·change_ratio` |
@@ -146,7 +146,7 @@ validated_critic = CriticValidationLoop(
     judge=LLMValidationJudge(backend=backend),
     max_iterations=3,
 )
-policy  = ActivePolicy(path="system_prompt.txt")
+policy  = ActivePolicy(path="system_prompt.md")
 history = RewardHistory.from_file("reward_history.json")
 lb      = Leaderboard.from_file("population.json")
 

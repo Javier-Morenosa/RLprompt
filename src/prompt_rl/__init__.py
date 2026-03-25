@@ -52,6 +52,8 @@ from prompt_rl.core.policy           import ActivePolicy
 from prompt_rl.critic.base             import CriticOutput, PerceptionCritic
 from prompt_rl.critic.llm_critic       import LLMPerceptionCritic
 from prompt_rl.critic.two_stage_critic import TwoStageCritic
+from prompt_rl.critic.backward        import CriticBackward, BackwardOutput
+from prompt_rl.critic.optimizer       import CriticOptimizer
 from prompt_rl.critic.memory           import CriticMemory
 from prompt_rl.rl.reward             import HybridReward, word_change_ratio
 from prompt_rl.rl.history            import RewardHistory
@@ -80,6 +82,7 @@ __all__ = [
     "PerceptionCycle", "ActivePolicy",
     # critic
     "PerceptionCritic", "LLMPerceptionCritic", "TwoStageCritic",
+    "CriticBackward", "BackwardOutput", "CriticOptimizer",
     "CriticOutput", "CriticMemory",
     # rl
     "HybridReward", "word_change_ratio", "RewardHistory",

@@ -2,6 +2,8 @@
 
 > **Nota:** Este documento describe paralelización para `HybridOptimizationFlow` y generación de K candidatos. La implementación actual (**Human-Watch**) procesa un ciclo a la vez; el evaluator es un subproceso. La paralelización es una extensión prevista.
 
+> **Código de ejemplo:** Los fragmentos de este documento son de diseño conceptual. Los módulos `prompt_rl.utils`, `prompt_rl.training`, `prompt_rl.actor_critic`, etc. pueden no existir en la implementación actual.
+
 Evaluations can be run in parallel to reduce wall-clock time when generating K candidate responses or scoring many (prompt, query, response) triples with the Critic.
 
 ---

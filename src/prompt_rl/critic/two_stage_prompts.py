@@ -3,6 +3,9 @@ Prompts para el pipeline de critic en dos etapas.
 
 Critic 1.1 (Backward): contexto completo (conversación, evaluación humana + cursor).
 Critic 1.2 (Optimizer): genera nuevo system prompt a partir del feedback.
+
+Inspirado en TextGrad (llm_backward_prompts, reduce_prompts): formato accionable del feedback,
+énfasis en rol/contexto, y feedback que apunta al objetivo downstream.
 """
 
 # ── Critic 1.1 (Backward) ───────────────────────────────────────────────────────
@@ -21,18 +24,28 @@ CRITIC_BACKWARD_SYSTEM = (
     "Eres el motor de feedback (gradiente). "
     "Tu única responsabilidad es dar feedback inteligente y crítico constructivo a las variables, "
     "dado el objetivo especificado en <EVALUACION_HUMANA> </EVALUACION_HUMANA>. "
-    "Las variables pueden ser system prompts, soluciones, etc. "
+    "Las variables pueden ser system prompts, soluciones, código, chatbots, etc. "
+    "Presta atención al rol de la variable y al contexto en que se usa; asume que se usará en contextos similares en el futuro. "
     "Solo proporciona estrategias, explicaciones y métodos de cambio. "
     "NO propongas una nueva versión de la variable; eso lo hará el optimizador. "
-    "Tu trabajo es enviar feedback y crítica (calcular 'gradientes'). "
-    "Ejemplos: 'Dado que los modelos fallan en X...', 'Añadir Y puede corregir porque...'. "
-    "Si la respuesta fue correcta y el feedback es positivo, indica qué aspectos mantener.\n\n"
-    "CRÍTICO - CEGUERA PARA EL OPTIMIZADOR: "
-    "Tu feedback será consumido por el Optimizer (etapa 1.2), que trabaja a CIEGAS de la conversación: "
-    "NO ves user_query ni bot_response. Por tanto, tu feedback NO DEBE contener alusiones a la pregunta concreta "
-    "(ej: prohibido 'cuando pregunten por el Plan Pro...', 'el usuario preguntó sobre X...'). "
-    "Escribe feedback GENÉRICO y aplicable al system prompt: ej. 'Incluir en la información de planes que los precios llevan IVA' "
-    "en vez de 'Mencionar IVA cuando pregunten por el Plan Pro'.\n"
+    "Tu trabajo es enviar feedback y crítica (calcular 'gradientes') que apunten al objetivo downstream.\n\n"
+    "FORMATO DEL FEEDBACK (accionable y específico): "
+    "Usa estructuras como: 'Dado que el modelo tiene el fallo X...', 'Añadir Y puede corregir porque...', "
+    "'Quitar Z mejoraría porque...', 'Cambiar X por Y corregiría el error porque...'. "
+    "Si la respuesta fue correcta y el feedback es positivo, indica qué aspectos mantener. "
+    "Si ya funciona bien, no des feedback superfluo.\n\n"
+    "SÉ ESPECÍFICO EN LA DIRECCIÓN DEL FALLO: "
+    "Analiza la conversación e identifica el TIPO de error, el PATRÓN de fallo y la DIRECCIÓN de la corrección. "
+    "Ejemplos (sin citar pregunta ni respuesta literal): "
+    "'El modelo falló en operaciones intermedias de un problema multi-paso → añadir instrucciones para verificar cada paso antes de continuar'; "
+    "'Omitió información crucial que el usuario esperaba → incluir que debe cubrir explícitamente X cuando sea relevante'; "
+    "'Confundió unidades o magnitudes → añadir regla de verificar coherencia de unidades'. "
+    "Dirige al Optimizer con precisión: qué categoría de fallo ocurrió y qué tipo de instrucción lo corregiría.\n\n"
+    "CEGUERA PARA EL OPTIMIZADOR (sin contenido literal): "
+    "Tu feedback será consumido por el Optimizer, que NO ve la conversación. "
+    "NO incluyas citas literales de la pregunta ni de la respuesta. "
+    "NO hagas alusiones a instancias concretas (ej: prohibido 'cuando pregunten por el Plan Pro...'). "
+    "SÍ incluye: tipo de fallo, patrón de error, dominio afectado (si aplica) y dirección de la corrección.\n"
     f"{GLOSSARY_BACKWARD}"
 )
 
@@ -53,16 +66,18 @@ OBJECTIVE_INSTRUCTION = (
     "{human_evaluation_block}\n\n"
     "Tu objetivo es dar feedback y crítica a la variable para abordar la evaluación humana. "
     "Extrae las pistas relevantes del feedback y del trazado de cursor si existe. "
-    "Recuerda: escribe feedback GENÉRICO (sin referencias a la pregunta concreta), "
-    "porque el Optimizer lo lee a ciegas.\n\n"
+    "Sé ESPECÍFICO en la dirección: identifica tipo de fallo, patrón de error y qué instrucción lo corregiría. "
+    "Sin citar la pregunta ni la respuesta literal; el Optimizer trabaja a ciegas.\n\n"
 )
 
 EVALUATE_VARIABLE = (
     "Queremos feedback para el {variable_desc}. "
     "Da feedback al siguiente fragmento:\n\n"
     "<VARIABLE> {variable_short} </VARIABLE>\n\n"
-    "Describe cómo podría mejorarse para satisfacer la evaluación humana. "
-    "Feedback GENÉRICO (sin alusiones a la pregunta del usuario): el Optimizer trabaja a ciegas.\n\n"
+    "Dado el historial anterior, describe cómo podría mejorarse para satisfacer la evaluación humana. "
+    "Sé creativo, crítico e inteligente. "
+    "Sé específico en la dirección del fallo (tipo de error, patrón, corrección sugerida). "
+    "Sin citar la pregunta ni la respuesta literal; el Optimizer trabaja a ciegas.\n\n"
 )
 
 # ── Propagación por componentes (predecessors) ─────────────────────────────────
@@ -80,8 +95,10 @@ EVALUATE_BY_COMPONENT = (
     "Da feedback ESPECÍFICO para cada componente que necesite mejora.\n\n"
     "{components_block}\n\n"
     "Para cada componente, indica cómo mejorarlo según la evaluación humana. "
+    "Sé creativo, crítico e inteligente. "
     "Si un componente está bien, escribe 'OK' o 'mantener'. "
-    "Feedback GENÉRICO (sin mencionar la pregunta del usuario): el Optimizer trabaja a ciegas. "
+    "Sé específico en la dirección del fallo (tipo de error, patrón, corrección sugerida). "
+    "Sin citar la pregunta ni la respuesta literal; el Optimizer trabaja a ciegas. "
     "Responde con el formato exacto:\n\n"
     "<FEEDBACK component=\"role\">\n...\n</FEEDBACK>\n"
     "<FEEDBACK component=\"hard_rules\">\n...\n</FEEDBACK>\n"
