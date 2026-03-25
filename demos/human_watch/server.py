@@ -78,23 +78,17 @@ def _load_system_prompt() -> str:
               f"mtime={mtime:.1f} | hash={short_hash} | preview={repr(preview)[:60]}...")
     return content
 
-RAG_INFO = """\
-## Información de la Empresa
+def _load_rag_info() -> str:
+    """Load RAG content from RAG_INFO_FILE env var or the default rag_info.md."""
+    rag_path = Path(os.environ.get(
+        "RAG_INFO_FILE",
+        Path(__file__).parent / "rag_info.md",
+    ))
+    if rag_path.exists():
+        return rag_path.read_text(encoding="utf-8")
+    return ""
 
-### Planes y Precios
-- Plan Básico: 29 €/mes — 5 usuarios, 10 GB almacenamiento
-  * El precio INCLUYE IVA del 21 %
-- Plan Pro: 79 €/mes — 25 usuarios, 100 GB, soporte prioritario
-  * El precio INCLUYE IVA del 21 %
-
-### Política de Devoluciones
-- 30 días de garantía de satisfacción
-- Devolución completa sin condiciones
-
-### Horario de Atención
-- Lunes a Viernes: 9:00 – 18:00
-- Soporte técnico 24/7 únicamente para Plan Pro
-"""
+RAG_INFO = _load_rag_info()
 
 HTML_PAGE = """<!DOCTYPE html>
 <html lang="es">
